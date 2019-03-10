@@ -1,0 +1,32 @@
+{
+  "name": "immuto",
+  "version": "0.1.0",
+  "description": "Immuto's JavaScript library for record creation and verification.",
+  "main": "immuto.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/immuto-inc/immuto.js.git"
+  },
+  "keywords": [
+    "immuto",
+    "blockchain",
+    "data",
+    "integrity",
+    "verification",
+    "security",
+    "record",
+    "keeping"
+  ],
+  "author": "Sebastian Coates",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/immuto-inc/immuto.js/issues"
+  },
+  "homepage": "https://github.com/immuto-inc/immuto.js#readme",
+  "dependencies": {
+    "web3": "^1.0.0-beta.41"
+  }
+}

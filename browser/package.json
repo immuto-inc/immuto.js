@@ -1,0 +1,15 @@
+{
+  "name": "browser-build",
+  "version": "1.0.0",
+  "description": "Basic project for building immuto.js for browser",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Sebastian Coates",
+  "license": "MIT",
+  "dependencies": {
+    "eth-sig-util": "^2.1.1",
+    "web3": "^1.0.0-beta.37"
+  }
+}
