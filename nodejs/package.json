@@ -27,6 +27,9 @@
   },
   "homepage": "https://github.com/immuto-inc/immuto.js#readme",
   "dependencies": {
-    "web3": "^1.0.0-beta.41"
-  }
+    "eth-sig-util": "^2.1.2",
+    "web3": "^1.0.0-beta.41",
+    "xmlhttprequest": "^1.8.0"
+  },
+  "devDependencies": {}
 }
