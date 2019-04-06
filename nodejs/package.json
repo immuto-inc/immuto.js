@@ -1,5 +1,5 @@
 {
-  "name": "immuto",
+  "name": "immuto-backend",
   "version": "0.1.0",
   "description": "Immuto's JavaScript library for record creation and verification.",
   "main": "immuto.js",
@@ -25,7 +25,7 @@
   "bugs": {
     "url": "https://github.com/immuto-inc/immuto.js/issues"
   },
-  "homepage": "https://github.com/immuto-inc/immuto.js#readme",
+  "homepage": "https://immuto.io",
   "dependencies": {
     "eth-sig-util": "^2.1.2",
     "web3": "^1.0.0-beta.41",
