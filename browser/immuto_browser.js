@@ -49,7 +49,7 @@ exports.init = (debug, debugHost) => {
                 let sendstring = "emails=" + emails + "&authToken=" + this.authToken
 
                 http.open("POST", this.host + "/emails-to-addresses", true)
-                http.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+                http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 http.onreadystatechange = function() {
                     if (http.readyState == 4 && http.status == 200) {
                         try {
@@ -92,7 +92,7 @@ exports.init = (debug, debugHost) => {
 
             let sendstring = "email=" + email.toLowerCase()
             http.open("GET", this.host + "/shard-public-node", true)
-            http.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             http.onreadystatechange = () => {
                 if (http.readyState == 4 && http.status == 200) {
                     let URI = http.responseText
@@ -128,7 +128,7 @@ exports.init = (debug, debugHost) => {
                 sendstring += "&password=" + this.web3.utils.sha3(password)
 
                 http.open("POST", this.host + "/submit-login", true)
-                http.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+                http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 http.onreadystatechange = () => {
                     if (http.readyState === 4 && http.status == 200) {
                         let response = JSON.parse(http.responseText)
@@ -156,7 +156,7 @@ exports.init = (debug, debugHost) => {
 
                         let http2 = new XMLHttpRequest()
                         http2.open("POST", this.host + "/prove-address", true)
-                        http2.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+                        http2.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                         http2.onreadystatechange = () => {
                             if (http2.readyState == 4 && http2.status == 204) {
                                 resolve(this.authToken)
@@ -402,7 +402,7 @@ exports.init = (debug, debugHost) => {
             sendstring += "&authToken=" + this.authToken 
 
             http.open("POST", this.host + "/get-contract-info", true)
-            http.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             http.onreadystatechange = () => {
                 if (http.readyState == 4 && http.status == 200) {
                     let response = JSON.parse(http.responseText)
@@ -487,7 +487,7 @@ exports.init = (debug, debugHost) => {
                 sendstring += "&authToken=" + this.authToken 
 
                 http.open("POST", this.host + "/get-contract-info", true)
-                http.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+                http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 http.onreadystatechange = () => {
                     if (http.readyState == 4 && http.status == 200) {
                         let response = JSON.parse(http.responseText)
