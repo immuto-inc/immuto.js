@@ -16,32 +16,61 @@ let currentSession = prompt("Test current session? Leave blank for new session."
 let im = Immuto.init(true, "http://localhost:8000")
 
 async function run_tests() {
-    if (!currentSession) {
-        await im.deauthenticate()// ensure user not logged in to start tests
-    }
+    await im.deauthenticate()// ensure user not logged in to start tests
 
-    let testResult = await establish_connection_tests()
-    im.connected = false
-    if (testResult) console.log("Parallel connection attempts successful!");
+    try {
+        let testResult = await establish_connection_tests()
+        im.connected = false
+        if (testResult) console.log("Parallel connection attempts successful!");
+    } catch (err) {
+        console.error("Error during parallel connection attempts")
+        console.error(err)
+    }
     
-    
-    if (!currentSession) {
+    try {
         await im.authenticate(email, password)
+    } catch (err) {
+        console.error("Failed to authenticate")
+        console.error(err)
     }
-    testResult = await data_management_tests()
-    if (testResult) console.log("Data management tests successful!");
+    
+    try {
+        testResult = await data_management_tests()
+        if (testResult) console.log("Data management tests successful!");
+    } catch (err) {
+        console.error("Failed data management tests")
+        console.error(err)
+    }
+   
 
-    im.connected = false // test auto connection before record verification
-    testResult = await data_management_tests()
-    if (testResult) console.log("Data management (with auto connect) tests successful!");
+    try {
+        im.connected = false // test auto connection before record verification
+        testResult = await data_management_tests()
+        if (testResult) console.log("Data management (with auto connect) tests successful!");
+    } catch (err) {
+        console.error("Failed data management tests (with auto connect)")
+        console.error(err)
+    }
+    
 
-    testResult = await digital_agreement_tests()
-    if (testResult) console.log("Digital agreement tests successful!");
+    try {
+        testResult = await digital_agreement_tests()
+        if (testResult) console.log("Digital agreement tests successful!");
+    } catch (err) {
+        console.error("Failed digital agreement tests")
+        console.error(err)
+    }
 
-    im.connected = false // test auto connection before record verification
-    testResult = await digital_agreement_tests()
-    if (testResult) console.log("Digital agreement (with auto connect) tests successful!");
+    try {
+          im.connected = false // test auto connection before record verification
+        testResult = await digital_agreement_tests()
+        if (testResult) console.log("Digital agreement (with auto connect) tests successful!");
+    } catch (err) {
+        console.error("Failed digital agreement tests (with auto connect)")
+        console.error(err)
+    }
 }
+
 
 // parallel requests should all be successful, including automatic from attempt connection
 function establish_connection_tests() {
