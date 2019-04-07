@@ -4,7 +4,7 @@
   "description": "Immuto's JavaScript library for record creation and verification.",
   "main": "immuto.js",
   "scripts": {
-    "test": "test"
+    "test": "echo 'Find full testing in tests directory (../testing/nodejs)'"
   },
   "repository": {
     "type": "git",
