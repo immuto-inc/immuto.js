@@ -231,8 +231,19 @@ exports.init = (debug, debugHost) => {
             this.salt = ""
             this.encryptedKey = ""
             this.connected = false
-            resolve()
-            // TODO: should HTTP logout as well, before resolving, with rejection on error
+            
+            var http = new XMLHttpRequest();
+            http.open("GET", this.host + "/logout-API", true);
+            http.setRequestHeader('Accept', 'application/json, text/javascript');
+            http.onreadystatechange = () => {
+                if (http.readyState == 4 && http.status == 204) {
+                    resolve() 
+                } else if (http.readyState == 4) {
+                    reject(http.responseText)
+                }
+            };
+
+            http.send();
         })
     }
 
