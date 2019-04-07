@@ -57,7 +57,6 @@ exports.init = (debug, debugHost) => {
                             let addresses = JSON.parse(http.responseText) 
                             resolve(addresses)
                         } catch (err) {
-                            console.log(http.responseText)
                             reject(err)
                         }
                     } else if (http.readyState == 4) {
@@ -132,7 +131,6 @@ exports.init = (debug, debugHost) => {
                 http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 http.onreadystatechange = () => {
                     if (http.readyState === 4 && http.status == 200) {
-                        console.log(http.responseText)
                         let response = JSON.parse(http.responseText)
                         this.salt = response.salt
                         this.encryptedKey = response.encryptedKey
@@ -183,7 +181,13 @@ exports.init = (debug, debugHost) => {
 
     this.deauthenticate = function() {
         return new Promise((resolve, reject) => {
-            reject("Unimplemented")
+            this.authToken = ""
+            this.email = ""
+            this.salt = ""
+            this.encryptedKey = ""
+            this.connected = false
+            resolve()
+            // TODO: should HTTP logout as well, before resolving, with rejection on error
         })
     }
 
