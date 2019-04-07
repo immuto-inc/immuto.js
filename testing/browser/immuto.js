@@ -134,15 +134,11 @@ exports.init = (debug, debugHost) => {
 
     if (attemptConnection) {
         this.establish_connection(this.email).then(() => {
-            // Connection for verification, history automatically established.
-            // This does not need to happen before such functions, as they will
-            // connect automatically if this has not resolved yet.
+            // safe as concurrent with verification auto-connection calls
             // console.log("auto connection established")
         }).catch((err) => {
             console.error(err)
         })
-    } else {
-        console.log("not attempting connection")
     }
 
     this.authenticate = function(email, password) {
@@ -267,7 +263,11 @@ exports.init = (debug, debugHost) => {
                     password + this.salt
                 );
             } catch(err) {
-                reject(err);
+                if (!this.email) {
+                    reject("User not yet authenticated.");
+                } else {
+                    reject("User password invalid")
+                }
                 return;
             }
 
