@@ -137,7 +137,7 @@ exports.init = (debug, debugHost) => {
             // Connection for verification, history automatically established.
             // This does not need to happen before such functions, as they will
             // connect automatically if this has not resolved yet.
-            console.log("auto connection established")
+            // console.log("auto connection established")
         }).catch((err) => {
             console.error(err)
         })
@@ -203,6 +203,7 @@ exports.init = (debug, debugHost) => {
                                 window.localStorage.email = email
                                 window.localStorage.salt = this.salt
                                 window.localStorage.encryptedKey = this.encryptedKey
+                                this.email = email
                                 resolve(this.authToken)
                             } else if (http2.readyState == 4) {
                                 console.error("Error on login verification")
@@ -636,7 +637,7 @@ exports.init = (debug, debugHost) => {
 
     this.get_digital_agreement_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
-            if (this.web3) { // be more thorough later
+            if (this.connected) { 
                 let contract = undefined
                 if (type === "single_sign") {
                     contract = new this.web3.eth.Contract(SINGLE_SIGN_AGREEMENT_ABI, recordID);
@@ -671,7 +672,21 @@ exports.init = (debug, debugHost) => {
                     reject(err)
                 })
             } else {
-               reject("Connection to verification server not established. Call establish_connection to setup a connection.")
+                if (!this.email) {
+                    reject("User not yet authenticated. No email provided.")
+                    return
+                } else { 
+                    this.establish_connection(this.email).then(() => {
+                        // this.connected is now true, can safely recurse once
+                        this.get_digital_agreement_history(recordID, type).then((history) => {
+                            resolve(history)
+                        }).catch((err) => {
+                            reject(err)
+                        })
+                    }).catch((err) => {
+                        reject("Unable to establish connection")
+                    })
+                }
             }
         })
     }

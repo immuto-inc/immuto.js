@@ -201,6 +201,7 @@ exports.init = (debug, debugHost) => {
                                 window.localStorage.email = email
                                 window.localStorage.salt = this.salt
                                 window.localStorage.encryptedKey = this.encryptedKey
+                                this.email = email
                                 resolve(this.authToken)
                             } else if (http2.readyState == 4) {
                                 console.error("Error on login verification")
