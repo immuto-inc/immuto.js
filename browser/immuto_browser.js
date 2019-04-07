@@ -27,6 +27,20 @@ exports.init = (debug, debugHost) => {
 
     // for API acess
     this.authToken = ""
+    this.email = ""
+
+    // for Web3 connection (record creation/ verification)
+    this.connected = false
+
+    let ls = window.localStorage // preserve session across pages
+    let attemptConnection = false
+    if (ls.authToken && ls.email && ls.salt && ls.encryptedKey) {
+        this.salt = ls.salt
+        this.encryptedKey = ls.encryptedKey
+        this.authToken = ls.authToken
+        this.email = ls.email
+        attemptConnection = true
+    }
 
     this.utils = {
         convert_unix_time: function(time_ms) {
@@ -97,9 +111,15 @@ exports.init = (debug, debugHost) => {
                 if (http.readyState == 4 && http.status == 200) {
                     let URI = http.responseText
                     try {
-                        this.web3 = new Web3(URI)
-                        resolve()
+                        if (this.connected) {
+                            resolve() // concurrent call to this function has already succeeded
+                        } else { 
+                            this.web3 = new Web3(URI)
+                            this.connected = true
+                            resolve()
+                        }
                     } catch (err) {
+                        this.connected = false
                         reject(err)
                     }
                 } else if (http.readyState == 4) {
@@ -110,8 +130,26 @@ exports.init = (debug, debugHost) => {
         })
     }
 
+    if (attemptConnection) {
+        this.establish_connection(this.email).then(() => {
+            // Connection for verification, history automatically established.
+            // This does not need to happen before such functions, as they will
+            // connect automatically if this has not resolved yet.
+            // console.log("auto connection established")
+        }).catch((err) => {
+            console.error(err)
+        })
+    } else {
+        console.log("not attempting connection")
+    }
+
     this.authenticate = function(email, password) {
         return new Promise((resolve, reject) => {
+            if (this.salt && this.encryptedKey && this.authToken && this.email) {
+                reject("User already authenticated. Call deauthenticate before authenticating a new user.")
+                return
+            } 
+
             if (!email) {
                 reject("Email required for authentication")
                 return
@@ -135,7 +173,7 @@ exports.init = (debug, debugHost) => {
                         this.salt = response.salt
                         this.encryptedKey = response.encryptedKey
                         this.authToken = response.authToken
-                        
+
                         let account = undefined
                         try {
                             account = this.web3.eth.accounts.decrypt( 
@@ -159,6 +197,10 @@ exports.init = (debug, debugHost) => {
                         http2.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                         http2.onreadystatechange = () => {
                             if (http2.readyState == 4 && http2.status == 204) {
+                                window.localStorage.authToken = this.authToken
+                                window.localStorage.email = email
+                                window.localStorage.salt = this.salt
+                                window.localStorage.encryptedKey = this.encryptedKey
                                 resolve(this.authToken)
                             } else if (http2.readyState == 4) {
                                 console.error("Error on login verification")
@@ -181,7 +223,17 @@ exports.init = (debug, debugHost) => {
 
     this.deauthenticate = function() {
         return new Promise((resolve, reject) => {
-            reject("Unimplemented")
+            window.localStorage.authToken = ""
+            window.localStorage.email = ""
+            window.localStorage.salt = ""
+            window.localStorage.encryptedKey = ""
+            this.authToken = ""
+            this.email = ""
+            this.salt = ""
+            this.encryptedKey = ""
+            this.connected = false
+            resolve()
+            // TODO: should HTTP logout as well, before resolving, with rejection on error
         })
     }
 
@@ -283,7 +335,7 @@ exports.init = (debug, debugHost) => {
 
     this.get_data_management_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
-            if (this.web3) { // be more thorough later
+            if (this.connected) { 
                 let contract = undefined
                 if (type === "basic") {
                     contract = new this.web3.eth.Contract(BASIC_DATA_STORAGE_ABI, recordID);
@@ -312,7 +364,21 @@ exports.init = (debug, debugHost) => {
                     reject(err)
                 })
             } else {
-               reject("Connection to verification server not established. Call establish_connection to setup a connection.")
+                if (!this.email) {
+                    reject("User not yet authenticated. No email provided.")
+                    return
+                } else { 
+                    this.establish_connection(this.email).then(() => {
+                        // this.connected is now true, can safely recurse once
+                        this.get_data_management_history(recordID, type).then((history) => {
+                            resolve(history)
+                        }).catch((err) => {
+                            reject(err)
+                        })
+                    }).catch((err) => {
+                        reject("Unable to establish connection")
+                    })
+                }
             }
         })
     }
@@ -381,7 +447,6 @@ exports.init = (debug, debugHost) => {
 
             xhr.send(fd);
         })
-
     }
 
     this.sign_digital_agreement = function(recordID, password) {
@@ -569,7 +634,7 @@ exports.init = (debug, debugHost) => {
 
     this.get_digital_agreement_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
-            if (this.web3) { // be more thorough later
+            if (this.connected) { 
                 let contract = undefined
                 if (type === "single_sign") {
                     contract = new this.web3.eth.Contract(SINGLE_SIGN_AGREEMENT_ABI, recordID);
@@ -604,7 +669,21 @@ exports.init = (debug, debugHost) => {
                     reject(err)
                 })
             } else {
-               reject("Connection to verification server not established. Call establish_connection to setup a connection.")
+                if (!this.email) {
+                    reject("User not yet authenticated. No email provided.")
+                    return
+                } else { 
+                    this.establish_connection(this.email).then(() => {
+                        // this.connected is now true, can safely recurse once
+                        this.get_digital_agreement_history(recordID, type).then((history) => {
+                            resolve(history)
+                        }).catch((err) => {
+                            reject(err)
+                        })
+                    }).catch((err) => {
+                        reject("Unable to establish connection")
+                    })
+                }
             }
         })
     }

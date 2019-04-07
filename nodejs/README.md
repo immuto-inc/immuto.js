@@ -14,7 +14,7 @@ npm install immuto-backend --save
 Please ensure you use "immuto-backend" and not "immuto"
 
 ### Browser
-You may download a pre-built version from the <a href="https://github.com/immuto-inc/immuto.js/releases"> "Releases" tab </a> on GitHub. Include
+You may download a pre-built version from the <a href="https://github.com/immuto-inc/immuto.js/releases"> releases on GitHub </a>. Include
 in an HTML page as follows:
 ```
 <script src="immuto.js"></script>
