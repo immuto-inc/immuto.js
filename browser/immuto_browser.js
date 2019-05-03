@@ -70,7 +70,7 @@ exports.init = (debug, debugHost) => {
                             let addresses = JSON.parse(http.responseText) 
                             resolve(addresses)
                         } catch (err) {
-                            console.log(http.responseText)
+                            console.error(http.responseText)
                             reject(err)
                         }
                     } else if (http.readyState == 4) {

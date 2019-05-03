@@ -237,10 +237,11 @@ exports.init = (debug, debugHost) => {
             signature.message = "" // Maintain data privacy
 
             var xhr = new XMLHttpRequest();
-            var fd = new FormData();
+            //var fd = new FormData();
+            let sendstring = ""
 
             xhr.open("POST", this.host + "/submit-new-data-upload", true);
-            xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             xhr.onreadystatechange = () => {
                 if (xhr.readyState == 4 && xhr.status == 200) {
                     resolve(xhr.responseText) 
@@ -249,12 +250,12 @@ exports.init = (debug, debugHost) => {
                 }
             };
 
-            fd.append('filename', name)
-            fd.append('filedesc', desc)
-            fd.append('signature', JSON.stringify(signature))
-            fd.append('type', type)
-            fd.append('authToken', this.authToken)
-            xhr.send(fd);
+            sendstring += 'filename=' + name
+            sendstring += '&filedesc=' + desc
+            sendstring += '&signature=' + JSON.stringify(signature)
+            sendstring += '&type=' + type
+            sendstring += '&authToken=' + this.authToken
+            xhr.send(sendstring);
         })
     }
 
@@ -277,10 +278,11 @@ exports.init = (debug, debugHost) => {
                 signature.message = "" // Waste of space to send full message
 
                 var xhr = new XMLHttpRequest();
-                var fd = new FormData();
+                //var fd = new FormData();
+                let sendstring = ""
 
                 xhr.open("POST", this.host + "/update-data-storage", true);
-                xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 xhr.onreadystatechange = () => {
                     if (xhr.readyState == 4 && xhr.status == 204) {
                         resolve()
@@ -288,10 +290,11 @@ exports.init = (debug, debugHost) => {
                         reject(xhr.responseText)
                     }
                 };
-                fd.append('contractAddr', recordID) // from submit-new-data-upload
-                fd.append('signature', JSON.stringify(signature))
-                fd.append('authToken', this.authToken)
-                xhr.send(fd);
+
+                sendstring += 'contractAddr=' + recordID // from submit-new-data-upload
+                sendstring += '&signature=' + JSON.stringify(signature)
+                sendstring += '&authToken=' + this.authToken
+                xhr.send(sendstring);
             }).catch((err) => {
                 reject(err)
             })
@@ -312,7 +315,7 @@ exports.init = (debug, debugHost) => {
                 }
                 
                 contract.getPastEvents('Updated', {
-                    fromBlock: 0
+                   fromBlock: 0
                 })
                 .then((events) => {
                     let history = []
@@ -376,10 +379,11 @@ exports.init = (debug, debugHost) => {
             signature.message = "" // Unnecessary for request
 
             var xhr = new XMLHttpRequest();
-            var fd = new FormData();
+            //var fd = new FormData();
+            let sendstring = ""
 
             xhr.open("POST", this.host + "/submit-new-agreement-upload", true);
-            xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             xhr.onreadystatechange = () => {
                 if (xhr.readyState == 4 && xhr.status == 200) {
                     resolve(xhr.responseText)
@@ -387,16 +391,16 @@ exports.init = (debug, debugHost) => {
                     reject(xhr.responseText)
                 }
             };
-            fd.append('filename', name)
-            fd.append('filedesc', desc)
-            fd.append('signature', JSON.stringify(signature))
-            fd.append('type', type)
+            sendstring += 'filename=' + name
+            sendstring += '&filedesc=' + desc
+            sendstring += '&signature=' + JSON.stringify(signature)
+            sendstring += '&type=' + type
             if (type == 'multisig')
-                    fd.append('signers', JSON.stringify(signers))
-            fd.append('fileHash', hashedData)
-            fd.append('authToken', this.authToken)
+                    sendstring += '&signers=' + JSON.stringify(signers)
+            sendstring += '&fileHash=' + hashedData
+            sendstring += '&authToken=' + this.authToken
 
-            xhr.send(fd);
+            xhr.send(sendstring);
         })
 
     }
@@ -429,10 +433,11 @@ exports.init = (debug, debugHost) => {
                     signature.message = "" // Unnecessary for request
 
                     var xhr = new XMLHttpRequest();
-                    var fd = new FormData();
+                    //var fd = new FormData();
+                    sendstring = ""
 
                     xhr.open("POST", this.host + "/sign-agreement", true);
-                    xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+                    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                     xhr.onreadystatechange = () => {
                         if (xhr.readyState == 4 && xhr.status == 204) {
                             resolve()
@@ -440,11 +445,11 @@ exports.init = (debug, debugHost) => {
                             reject(xhr.responseText)
                         }
                     };
-                    fd.append('contractAddr', recordID)
-                    fd.append('signature', JSON.stringify(signature))
-                    fd.append('authToken', this.authToken)
+                    sendstring += 'contractAddr=' + recordID
+                    sendstring += '&signature=' + JSON.stringify(signature)
+                    sendstring += '&authToken=' + this.authToken
 
-                    xhr.send(fd);
+                    xhr.send(sendstring);
                 } else if (http.readyState == 4) {
                     reject(http.responseText)
                 }
@@ -474,10 +479,11 @@ exports.init = (debug, debugHost) => {
             signature.message = "" // Unnecessary for request
 
             var xhr = new XMLHttpRequest();
-            var fd = new FormData();
+            //var fd = new FormData();
+            let sendstring = ""
 
             xhr.open("POST", this.host + "/update-agreement", true);
-            xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             xhr.onreadystatechange = () => {
                 if (xhr.readyState == 4 && xhr.status == 204) {
                     resolve()
@@ -485,12 +491,12 @@ exports.init = (debug, debugHost) => {
                     reject(xhr.responseText)
                 }
             };
-            fd.append('contractAddr', recordID)
-            fd.append('signature', JSON.stringify(signature))
-            fd.append('docHash', dataHash)
-            fd.append('authToken', this.authToken)
+            sendstring += 'contractAddr=' + recordID
+            sendstring += '&signature=' + JSON.stringify(signature)
+            sendstring += '&docHash=' + dataHash
+            sendstring += '&authToken=' + this.authToken
 
-            xhr.send(fd);
+            xhr.send(sendstring);
         })
 
     }

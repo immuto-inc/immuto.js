@@ -37,7 +37,11 @@ async function run_tests() {
     
     try {
         testResult = await data_management_tests()
-        if (testResult) console.log("Data management tests successful!");
+        if (testResult === true) {
+            console.log("Data management tests successful!")
+        } else {
+            console.error(testResult)
+        }
     } catch (err) {
         console.error("Failed data management tests")
         console.error(err)
@@ -47,7 +51,11 @@ async function run_tests() {
     try {
         im.connected = false // test auto connection before record verification
         testResult = await data_management_tests()
-        if (testResult) console.log("Data management (with auto connect) tests successful!");
+        if (testResult === true) {
+            console.log("Data management (with auto connect) tests successful!");
+        } else {
+            console.error(testResult)
+        }
     } catch (err) {
         console.error("Failed data management tests (with auto connect)")
         console.error(err)
@@ -56,16 +64,24 @@ async function run_tests() {
 
     try {
         testResult = await digital_agreement_tests()
-        if (testResult) console.log("Digital agreement tests successful!");
+        if (testResult === true) {
+            console.log("Digital agreement tests successful!");
+        } else {
+            console.error(testResult)
+        }
     } catch (err) {
         console.error("Failed digital agreement tests")
         console.error(err)
     }
 
     try {
-          im.connected = false // test auto connection before record verification
+        im.connected = false // test auto connection before record verification
         testResult = await digital_agreement_tests()
-        if (testResult) console.log("Digital agreement (with auto connect) tests successful!");
+        if (testResult === true) {
+            console.log("Digital agreement (with auto connect) tests successful!");
+        } else {
+            console.error(testResult)
+        }
     } catch (err) {
         console.error("Failed digital agreement tests (with auto connect)")
         console.error(err)
@@ -116,7 +132,7 @@ async function data_management_tests() {
         if (verified) {
             return true
         } else {
-            return false
+            throw "Failed verification of digital agreement"
         }
     } catch(err) {
         return err
@@ -136,7 +152,7 @@ async function digital_agreement_tests() {
         if (verified) {
             return true
         } else {
-            return false
+            throw "Failed verification of digital agreement"
         }
     } catch(err) {
         return err
