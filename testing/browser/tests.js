@@ -148,7 +148,7 @@ async function digital_agreement_tests() {
     try {
         let recordID = await im.create_digital_agreement(content, recordName, type, password, [], desc)
         let verified = await im.verify_digital_agreement(recordID, type, content)
-
+        
         if (verified) {
             return true
         } else {

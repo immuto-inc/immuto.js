@@ -1,6 +1,6 @@
 {
   "name": "immuto-backend",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Immuto's JavaScript library for record creation and verification.",
   "main": "immuto.js",
   "scripts": {

@@ -82,6 +82,37 @@ exports.init = (debug, debugHost) => {
                 http.send(sendstring)
             })
         },
+        addresses_to_emails: (history) => {
+            return new Promise((resolve, reject) => {
+                addresses = []
+                for (let event of history) {
+                    addresses.push(event.signer)
+                }
+
+                var http = new XMLHttpRequest()
+
+                let sendstring = "addresses=" + JSON.stringify(addresses) + "&authToken=" + this.authToken
+
+                http.open("POST", this.host + "/addresses-to-emails", true)
+                http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+                http.onreadystatechange = function() {
+                    if (http.readyState == 4 && http.status == 200) {
+                        try {
+                            let addrToEmail = JSON.parse(http.responseText) 
+                            for (let i = 0; i < history.length; i++) {
+                                history[i].email = addrToEmail[history[i].signer]
+                            }
+                            resolve(history)
+                        } catch (err) {
+                            reject(err)
+                        }
+                    } else if (http.readyState == 4) {
+                        reject(http.responseText)
+                    }
+                }
+                http.send(sendstring)
+            })
+        },
         ecRecover: (message, v, r, s) => {
             if (v == '28') {
                     v = Buffer.from('1c', 'hex')
@@ -93,7 +124,8 @@ exports.init = (debug, debugHost) => {
             s = Buffer.from(s.split('x')[1], 'hex')
 
             let signature = sigUtil.concatSig(v, r, s)
-            return sigUtil.recoverPersonalSignature({data: message, sig: signature})
+            let address = sigUtil.recoverPersonalSignature({data: message, sig: signature})
+            return this.web3.utils.toChecksumAddress(address)
         },
     }
 
@@ -457,18 +489,22 @@ exports.init = (debug, debugHost) => {
         return new Promise((resolve, reject) => {
             if (this.web3) { // be more thorough later
                 this.get_data_management_history(recordID, type).then((history) => {
-                    for (let i = 0; i < history.length; i++) {
-                        let priorHash = ""
-                        if (i > 0) 
-                            priorHash = history[i - 1].hash
+                    this.utils.addresses_to_emails(history).then((history) => {
+                        for (let i = 0; i < history.length; i++) {
+                            let priorHash = ""
+                            if (i > 0) 
+                                priorHash = history[i - 1].hash
 
-                        let hash = this.web3.eth.accounts.hashMessage(verificationContent + priorHash)
-                        if (hash.toLowerCase() == history[i].hash.toLowerCase()) {
-                            resolve(history[i])
-                            return
+                            let hash = this.web3.eth.accounts.hashMessage(verificationContent + priorHash)
+                            if (hash.toLowerCase() == history[i].hash.toLowerCase()) {
+                                resolve(history[i])
+                                return
+                            }
                         }
-                    }
-                    resolve(false)
+                        resolve(false)
+                    }).catch((err) => {
+                        console.error(err)
+                    })
                 }).catch((err) => {
                     reject(err)
                 })
@@ -647,13 +683,14 @@ exports.init = (debug, debugHost) => {
                                         for (let j = currentVersion; j < hashes.length; j++) {
                                             if (j > i) break;
                                             if (hashes[j].toLowerCase() == hash.toLowerCase()) {
-                                                let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s).toLowerCase()
-                                                if (addressLookup.has(address)) {
+                                                let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
+                                                if (addressLookup.has(address.toLowerCase())) {
                                                     validSignatures.push({
                                                         version: j,
                                                         timestamp: history[i].timestamp,
+                                                        hash: hash,
                                                         signer: address,
-                                                        hash: hash
+                                                        email: history[i]
                                                     })
                                                     break;
                                                 } else {
@@ -662,10 +699,18 @@ exports.init = (debug, debugHost) => {
                                             }
                                         }
                                     }
-                                    if (validSignatures.length > 0)
-                                        resolve(validSignatures)
-                                    else 
+                                    if (validSignatures.length > 0) {
+                                        this.utils.addresses_to_emails(validSignatures).then((validSignatures) => {
+                                            resolve(validSignatures)
+                                        }).catch((err) => {
+                                            reject(err)
+                                        })
+                                    }
+                                    else {
                                         resolve(false)
+                                    }
+                                }).catch((err) => {
+                                    reject(err)
                                 })
                             }).catch((err) => {
                                 reject(err)
@@ -675,16 +720,21 @@ exports.init = (debug, debugHost) => {
                                 let sig = history[0].signature
 
                                 let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
-                                if (address.toLowerCase() == response.userAddr.toLowerCase()) {
-                                    resolve([{
-                                        version: 0,
-                                        timestamp: history[0].timestamp,
-                                        signer: address,
-                                        hash: hash
-                                    }])
-                                } else {
-                                    resolve(false)
-                                }
+                                this.utils.addresses_to_emails([{signer: address}]).then((emails) => {
+                                    if (address.toLowerCase() == response.userAddr.toLowerCase()) {
+                                        resolve([{
+                                            version: 0,
+                                            timestamp: history[0].timestamp,
+                                            hash: hash,
+                                            signer: address,
+                                            email: emails[0].email
+                                        }])
+                                    } else {
+                                        resolve(false)
+                                    }
+                                }).catch((err) => {
+                                    reject(err)
+                                })
                             }).catch((err) => {
                                 reject(err)
                             })
