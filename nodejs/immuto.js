@@ -110,6 +110,63 @@ exports.init = (debug, debugHost) => {
         })
     }
 
+    
+    this.get_registration_token = function(address) {
+        return new Promise((resolve, reject) => {
+            var http = new XMLHttpRequest()
+
+            let sendstring = "address=" + address
+
+            http.open("POST", this.host + "/get-signature-data", true)
+            http.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+
+            http.onreadystatechange = () => {
+                    if (http.readyState == 4 && http.status == 200) {
+                        resolve(http.responseText)
+                    } else if (http.readyState == 4) {
+                        reject(http.responseText)
+                    }
+            }
+            http.send(sendstring)
+        })
+    }
+
+    this.register_user = function(email, password, orgToken) {
+        return new Promise((resolve, reject) => {
+            let salt = this.web3.utils.randomHex(32)
+            let account = this.web3.eth.accounts.create()
+            let address = account.address
+            let encryptedKey = this.web3.eth.accounts.encrypt(account.privateKey, password + salt);
+
+            this.get_registration_token(address).then((token) => {
+                let signature = account.sign(token)
+                var http = new XMLHttpRequest()
+
+                let sendstring = "email=" + email 
+                sendstring += "&password=" + this.web3.utils.sha3(password)
+                sendstring += "&salt=" + salt
+                sendstring += "&address=" + address
+                sendstring += "&keyInfo=" + JSON.stringify(encryptedKey)
+                sendstring += "&signature=" + JSON.stringify(signature)
+
+                if (orgToken)
+                    sendstring += "&registrationCode=" + orgToken
+
+                http.open("POST", this.host + "/submit-registration", true)
+                http.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+
+                http.onreadystatechange = () => {
+                    if (http.readyState == 4 && http.status == 204) {
+                        resolve()
+                    } else if (http.readyState == 4) {
+                        reject(http.responseText)
+                    }
+                }
+                http.send(sendstring)
+            })
+        })
+    }
+
     this.authenticate = function(email, password) {
         return new Promise((resolve, reject) => {
             if (!email) {
