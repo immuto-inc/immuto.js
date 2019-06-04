@@ -162,6 +162,10 @@ exports.init = (debug, debugHost) => {
         })
     }
 
+    this.establish_manual_connection = function(URI) {
+        this.web3 = new Web3(URI)
+    }
+
     if (attemptConnection) {
         this.establish_connection(this.email).then(() => {
             // safe as concurrent with verification auto-connection calls

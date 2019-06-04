@@ -142,6 +142,10 @@ exports.init = (debug, debugHost) => {
         })
     }
 
+    this.establish_manual_connection = function(URI) {
+        this.web3 = new Web3(URI)
+    }
+
     
     this.get_registration_token = function(address) {
         return new Promise((resolve, reject) => {
