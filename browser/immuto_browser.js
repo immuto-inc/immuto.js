@@ -11,7 +11,7 @@ exports.init = (debug, debugHost) => {
         if (debugHost)
             this.host = debugHost
         else 
-            throw "Debug mode activated but no host provided."
+            this.host = "https://dev.immuto.io" // reasonable default
     }
 
     try {
@@ -29,7 +29,7 @@ exports.init = (debug, debugHost) => {
     this.authToken = ""
     this.email = ""
 
-    // for Web3 connection (record creation/ verification)
+    // for Web3 connection (record creation/verification)
     this.connected = false
 
     let ls = window.localStorage // preserve session across pages
@@ -167,12 +167,10 @@ exports.init = (debug, debugHost) => {
     }
 
     if (attemptConnection) {
-        this.establish_connection(this.email).then(() => {
-            // safe as concurrent with verification auto-connection calls
-            // console.log("auto connection established")
-        }).catch((err) => {
-            console.error(err)
-        })
+        // safely concurrent with verification auto-connection calls
+        this.establish_connection(this.email)
+        .then(() => {}) // no need to do anything
+        .catch((err) => {console.error(err)})
     }
 
     this.get_registration_token = function(address) {
@@ -251,7 +249,7 @@ exports.init = (debug, debugHost) => {
                 let http = new XMLHttpRequest()
 
                 let sendstring = "email=" + email 
-                sendstring += "&password=" + this.web3.utils.sha3(password)
+                sendstring += "&password=" + this.web3.utils.sha3(password) // server does not see password
 
                 http.open("POST", this.host + "/submit-login", true)
                 http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
@@ -269,8 +267,7 @@ exports.init = (debug, debugHost) => {
                                 password + this.salt 
                             );
                         } catch(err) {
-                            console.error(err)
-                            reject("Password invalid")
+                            reject("Incorrect password")
                             return
                         }
                         
@@ -298,14 +295,14 @@ exports.init = (debug, debugHost) => {
                         }
                         http2.send(sendstring)
                     } else if (http.readyState === 4){
-                        console.error(http)
                         console.error("Error on login")
                         reject(http.status + ": " + http.responseText)
                     }
                 }
                 http.send(sendstring)
             }).catch((err) => {
-                reject(err)
+                console.error(err)
+                reject("Could not establish connection to verification server")
             })
         })
     }
@@ -337,19 +334,24 @@ exports.init = (debug, debugHost) => {
         })
     }
 
-    this.set_authentication = function(authToken, salt, keystore) {
-        throw "Unimplemented"
+    // convenience method for signing an arbitrary string
+    // user address can be recovered from signature by utils.ecRecover
+    this.sign_string = function(string, password) {
+        let account = undefined;
+        try { 
+            account = this.web3.eth.accounts.decrypt(
+                this.encryptedKey, 
+                password + this.salt
+            );
 
-        if (!authToken) {
-            throw "Invalid authToken: " + authToken
-        }
-
-        if (!salt) {
-            throw "Invalid salt: " + salt
-        }
-
-        if (!keystore) {
-             throw "Invalid keystore: " + keystore
+            return account.sign(string)
+        } catch(err) {
+            if (!this.email) {
+                throw("User not yet authenticated.");
+            } else {
+                throw(err)
+            }
+            return;
         }
     }
 

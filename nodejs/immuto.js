@@ -12,7 +12,7 @@ exports.init = (debug, debugHost) => {
         if (debugHost)
             this.host = debugHost
         else 
-            throw "Debug mode activated but no host provided."
+            this.host = "https://dev.immuto.io" // reasonable default
     }
 
     try {
@@ -236,8 +236,7 @@ exports.init = (debug, debugHost) => {
                                 password + this.salt 
                             );
                         } catch(err) {
-                            console.error(err)
-                            reject("Password invalid")
+                            reject("Incorrect password")
                             return
                         }
                         
@@ -260,14 +259,14 @@ exports.init = (debug, debugHost) => {
                         }
                         http2.send(sendstring)
                     } else if (http.readyState === 4){
-                        console.error(http)
                         console.error("Error on login")
                         reject(http.status + ": " + http.responseText)
                     }
                 }
                 http.send(sendstring)
             }).catch((err) => {
-                reject(err)
+                console.error(err)
+                reject("Could not establish connection to verification server")
             })
         })
     }
@@ -308,6 +307,27 @@ exports.init = (debug, debugHost) => {
 
         if (!keystore) {
              throw "Invalid keystore: " + keystore
+        }
+    }
+
+    // convenience method for signing an arbitrary string
+    // user address can be recovered from signature by utils.ecRecover
+    this.sign_string = function(string, password) {
+        let account = undefined;
+        try { 
+            account = this.web3.eth.accounts.decrypt(
+                this.encryptedKey, 
+                password + this.salt
+            );
+
+            return account.sign(string)
+        } catch(err) {
+            if (!this.email) {
+                throw("User not yet authenticated.");
+            } else {
+                throw(err)
+            }
+            return;
         }
     }
 

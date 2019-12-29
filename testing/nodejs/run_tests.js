@@ -13,7 +13,7 @@ if (!password) {
    process.exit()
 }
 
-let im = Immuto.init(true, "http://localhost:8000")
+let im = Immuto.init(true, "https://dev.immuto.io")
 run_tests()
 
 async function run_tests() {
