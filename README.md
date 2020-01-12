@@ -23,7 +23,7 @@ in an HTML page as follows:
 If you would like to build the browser code from scratch, you will need NPM and Browserify:
 ```
 git clone https://www.github.com/immuto-inc/immuto.js
-cd browser
+cd immuto.js/browser
 npm install
 browserify immuto_browser.js --s Immuto -o immuto.js
 ```
