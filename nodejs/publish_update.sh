@@ -10,6 +10,7 @@ read version
 npm --set version $version
 
 git add package.json
+git add package-lock.json
 git commit -m "bumping version number for update"
 git push
 
