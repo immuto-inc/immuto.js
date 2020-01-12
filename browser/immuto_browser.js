@@ -1,9 +1,22 @@
-/* COPYRIGHT 2019 under the MIT License
+/* COPYRIGHT 2020 under the MIT License
  * Immuto, Inc
  */
+let IN_BROWSER = ("undefined" !== typeof window)
 
 var Web3 = require('web3')
 var sigUtil = require('eth-sig-util')
+var NodeHTTP = require('xmlhttprequest').XMLHttpRequest // for backend compatability
+var NodeForm = require('form-data')                     // for backend compatability
+    
+function new_HTTP() {
+    if (IN_BROWSER) return new XMLHttpRequest()
+    else return new NodeHTTP()
+}
+
+function new_Form() { // for sending files with XMLHttpRequest
+    if (IN_BROWSER) return new FormData()
+    else return new NodeForm()
+}
 
 exports.init = (debug, debugHost) => {    
     this.host = "https://www.immuto.io"
@@ -31,15 +44,17 @@ exports.init = (debug, debugHost) => {
 
     // for Web3 connection (record creation/verification)
     this.connected = false
-
-    let ls = window.localStorage // preserve session across pages
     let attemptConnection = false
-    if (ls.authToken && ls.email && ls.salt && ls.encryptedKey) {
-        this.salt = ls.salt
-        this.encryptedKey = ls.encryptedKey
-        this.authToken = ls.authToken
-        this.email = ls.email
-        attemptConnection = true
+
+    if (IN_BROWSER) {
+        let ls = window.localStorage // preserve session across pages
+        if (ls.authToken && ls.email && ls.salt && ls.encryptedKey) {
+            this.salt = ls.salt
+            this.encryptedKey = ls.encryptedKey
+            this.authToken = ls.authToken
+            this.email = ls.email
+            attemptConnection = true
+        }
     }
 
     this.utils = {
@@ -58,7 +73,7 @@ exports.init = (debug, debugHost) => {
         },
         emails_to_addresses: (emails) => {
             return new Promise((resolve, reject) => {
-                var http = new XMLHttpRequest()
+                var http = new_HTTP()
 
                 let sendstring = "emails=" + emails + "&authToken=" + this.authToken
 
@@ -87,7 +102,7 @@ exports.init = (debug, debugHost) => {
                     addresses.push(event.signer)
                 }
 
-                var http = new XMLHttpRequest()
+                var http = new_HTTP()
 
                 let sendstring = "addresses=" + JSON.stringify(addresses) + "&authToken=" + this.authToken
 
@@ -125,6 +140,9 @@ exports.init = (debug, debugHost) => {
             let address = sigUtil.recoverPersonalSignature({data: message, sig: signature})
             return this.web3.utils.toChecksumAddress(address)
         },
+        is_valid_recordID: (ID) => {
+            this.web3.utils.isAddress(ID)
+        }
     }
 
     this.establish_connection = function(email) {
@@ -134,7 +152,7 @@ exports.init = (debug, debugHost) => {
                 return
             }
 
-            var http = new XMLHttpRequest()
+            var http = new_HTTP()
 
             let sendstring = "email=" + email.toLowerCase()
             http.open("GET", this.host + "/shard-public-node", true)
@@ -175,7 +193,7 @@ exports.init = (debug, debugHost) => {
 
     this.get_registration_token = function(address) {
         return new Promise((resolve, reject) => {
-            var http = new XMLHttpRequest()
+            var http = new_HTTP()
 
             let sendstring = "address=" + address
 
@@ -202,7 +220,7 @@ exports.init = (debug, debugHost) => {
 
             this.get_registration_token(address).then((token) => {
                 let signature = account.sign(token)
-                var http = new XMLHttpRequest()
+                var http = new_HTTP()
 
                 let sendstring = "email=" + email 
                 sendstring += "&password=" + this.web3.utils.sha3(password)
@@ -246,7 +264,7 @@ exports.init = (debug, debugHost) => {
             }
 
             this.establish_connection(email).then(() => {
-                let http = new XMLHttpRequest()
+                let http = new_HTTP()
 
                 let sendstring = "email=" + email 
                 sendstring += "&password=" + this.web3.utils.sha3(password) // server does not see password
@@ -277,15 +295,17 @@ exports.init = (debug, debugHost) => {
                         sendstring += "&signature=" + JSON.stringify(signature)
                         sendstring += "&authToken=" + this.authToken
 
-                        let http2 = new XMLHttpRequest()
+                        let http2 = new_HTTP()
                         http2.open("POST", this.host + "/prove-address", true)
                         http2.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                         http2.onreadystatechange = () => {
                             if (http2.readyState == 4 && http2.status == 204) {
-                                window.localStorage.authToken = this.authToken
-                                window.localStorage.email = email
-                                window.localStorage.salt = this.salt
-                                window.localStorage.encryptedKey = this.encryptedKey
+                                if (IN_BROWSER) {
+                                    window.localStorage.authToken = this.authToken
+                                    window.localStorage.email = email
+                                    window.localStorage.salt = this.salt
+                                    window.localStorage.encryptedKey = this.encryptedKey
+                                }
                                 this.email = email
                                 resolve(this.authToken)
                             } else if (http2.readyState == 4) {
@@ -309,17 +329,20 @@ exports.init = (debug, debugHost) => {
 
     this.deauthenticate = function() {
         return new Promise((resolve, reject) => {
-            window.localStorage.authToken = ""
-            window.localStorage.email = ""
-            window.localStorage.salt = ""
-            window.localStorage.encryptedKey = ""
+            if (IN_BROWSER) {
+                window.localStorage.authToken = ""
+                window.localStorage.email = ""
+                window.localStorage.salt = ""
+                window.localStorage.encryptedKey = ""
+                window.localStorage.password = "" // in case this is set elsewhere
+            }
             this.authToken = ""
             this.email = ""
             this.salt = ""
             this.encryptedKey = ""
             this.connected = false
             
-            var http = new XMLHttpRequest();
+            var http = new_HTTP();
             http.open("GET", this.host + "/logout-API", true);
             http.setRequestHeader('Accept', 'application/json, text/javascript');
             http.onreadystatechange = () => {
@@ -377,11 +400,11 @@ exports.init = (debug, debugHost) => {
             let signature = account.sign(content)
             signature.message = "" // Maintain data privacy
 
-            var xhr = new XMLHttpRequest();
-            var fd = new FormData();
+            var xhr = new_HTTP();
+            let sendstring = ""
 
             xhr.open("POST", this.host + "/submit-new-data-upload", true);
-            xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             xhr.onreadystatechange = () => {
                 if (xhr.readyState == 4 && xhr.status == 200) {
                     resolve(xhr.responseText) 
@@ -390,12 +413,12 @@ exports.init = (debug, debugHost) => {
                 }
             };
 
-            fd.append('filename', name)
-            fd.append('filedesc', desc)
-            fd.append('signature', JSON.stringify(signature))
-            fd.append('type', type)
-            fd.append('authToken', this.authToken)
-            xhr.send(fd);
+            sendstring += 'filename=' + name
+            sendstring += '&filedesc=' + desc
+            sendstring += '&signature=' + JSON.stringify(signature)
+            sendstring += '&type=' + type
+            sendstring += '&authToken=' + this.authToken
+            xhr.send(sendstring);
         })
     }
 
@@ -417,11 +440,11 @@ exports.init = (debug, debugHost) => {
                 let signature = account.sign(newContent + priorHash)
                 signature.message = "" // Waste of space to send full message
 
-                var xhr = new XMLHttpRequest();
-                var fd = new FormData();
+                var xhr = new_HTTP();
+                let sendstring = ""
 
                 xhr.open("POST", this.host + "/update-data-storage", true);
-                xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 xhr.onreadystatechange = () => {
                     if (xhr.readyState == 4 && xhr.status == 204) {
                         resolve()
@@ -429,10 +452,11 @@ exports.init = (debug, debugHost) => {
                         reject(xhr.responseText)
                     }
                 };
-                fd.append('contractAddr', recordID) // from submit-new-data-upload
-                fd.append('signature', JSON.stringify(signature))
-                fd.append('authToken', this.authToken)
-                xhr.send(fd);
+
+                sendstring += 'contractAddr=' + recordID // from submit-new-data-upload
+                sendstring += '&signature=' + JSON.stringify(signature)
+                sendstring += '&authToken=' + this.authToken
+                xhr.send(sendstring);
             }).catch((err) => {
                 reject(err)
             })
@@ -507,7 +531,7 @@ exports.init = (debug, debugHost) => {
                         }
                         resolve(false)
                     }).catch((err) => {
-                        console.error(err)
+                        reject(err)
                     })
                 }).catch((err) => {
                     reject(err)
@@ -527,18 +551,23 @@ exports.init = (debug, debugHost) => {
                     password + this.salt
                 );
             } catch(err) {
-                return err;
+                if (!this.email) {
+                    reject("User not yet authenticated.");
+                } else {
+                    reject("User password invalid")
+                }
+                return;
             }
 
             let hashedData = this.web3.utils.sha3(content)
             let signature = account.sign(hashedData)
             signature.message = "" // Unnecessary for request
 
-            var xhr = new XMLHttpRequest();
-            var fd = new FormData();
+            var xhr = new_HTTP();
+            let sendstring = ""
 
             xhr.open("POST", this.host + "/submit-new-agreement-upload", true);
-            xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             xhr.onreadystatechange = () => {
                 if (xhr.readyState == 4 && xhr.status == 200) {
                     resolve(xhr.responseText)
@@ -546,16 +575,16 @@ exports.init = (debug, debugHost) => {
                     reject(xhr.responseText)
                 }
             };
-            fd.append('filename', name)
-            fd.append('filedesc', desc)
-            fd.append('signature', JSON.stringify(signature))
-            fd.append('type', type)
+            sendstring += 'filename=' + name
+            sendstring += '&filedesc=' + desc
+            sendstring += '&signature=' + JSON.stringify(signature)
+            sendstring += '&type=' + type
             if (type == 'multisig')
-                    fd.append('signers', JSON.stringify(signers))
-            fd.append('fileHash', hashedData)
-            fd.append('authToken', this.authToken)
+                    sendstring += '&signers=' + JSON.stringify(signers)
+            sendstring += '&fileHash=' + hashedData
+            sendstring += '&authToken=' + this.authToken
 
-            xhr.send(fd);
+            xhr.send(sendstring);
         })
     }
 
@@ -571,7 +600,7 @@ exports.init = (debug, debugHost) => {
                 return err;
             }
 
-            var http = new XMLHttpRequest()
+            var http = new_HTTP()
 
             let sendstring = "contractAddr=" + recordID 
             sendstring += "&authToken=" + this.authToken 
@@ -586,11 +615,11 @@ exports.init = (debug, debugHost) => {
                     let signature = account.sign(currentHash)
                     signature.message = "" // Unnecessary for request
 
-                    var xhr = new XMLHttpRequest();
-                    var fd = new FormData();
+                    var xhr = new_HTTP();
+                    sendstring = ""
 
                     xhr.open("POST", this.host + "/sign-agreement", true);
-                    xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+                    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                     xhr.onreadystatechange = () => {
                         if (xhr.readyState == 4 && xhr.status == 204) {
                             resolve()
@@ -598,10 +627,10 @@ exports.init = (debug, debugHost) => {
                             reject(xhr.responseText)
                         }
                     };
-                    fd.append('contractAddr', recordID)
-                    fd.append('signature', JSON.stringify(signature))
-                    fd.append('authToken', this.authToken)
-
+                    
+                    sendstring += 'contractAddr=' + recordID
+                    sendstring += '&signature=' + JSON.stringify(signature)
+                    sendstring += '&authToken=' + this.authToken
                     xhr.send(fd);
                 } else if (http.readyState == 4) {
                     reject(http.responseText)
@@ -631,11 +660,11 @@ exports.init = (debug, debugHost) => {
             let signature = account.sign(dataHash)
             signature.message = "" // Unnecessary for request
 
-            var xhr = new XMLHttpRequest();
-            var fd = new FormData();
+            var xhr = new_HTTP();
+            let sendstring = ""
 
             xhr.open("POST", this.host + "/update-agreement", true);
-            xhr.setRequestHeader('Accept', 'application/json, text/javascript');
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             xhr.onreadystatechange = () => {
                 if (xhr.readyState == 4 && xhr.status == 204) {
                     resolve()
@@ -643,12 +672,12 @@ exports.init = (debug, debugHost) => {
                     reject(xhr.responseText)
                 }
             };
-            fd.append('contractAddr', recordID)
-            fd.append('signature', JSON.stringify(signature))
-            fd.append('docHash', dataHash)
-            fd.append('authToken', this.authToken)
+            sendstring += 'contractAddr=' + recordID
+            sendstring += '&signature=' + JSON.stringify(signature)
+            sendstring += '&docHash=' + dataHash
+            sendstring += '&authToken=' + this.authToken
 
-            xhr.send(fd);
+            xhr.send(sendstring);
         })
 
     }
@@ -656,7 +685,7 @@ exports.init = (debug, debugHost) => {
     this.verify_digital_agreement = function(recordID, type, verificationContent) {
         return new Promise((resolve, reject) => {
             if (this.web3) { // be more thorough later
-                var http = new XMLHttpRequest()
+                var http = new_HTTP()
 
                 let sendstring = "contractAddr=" + recordID 
                 sendstring += "&authToken=" + this.authToken 

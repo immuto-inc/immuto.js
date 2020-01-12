@@ -1,10 +1,22 @@
-/* COPYRIGHT 2019 under the MIT License
+/* COPYRIGHT 2020 under the MIT License
  * Immuto, Inc
  */
+let IN_BROWSER = ("undefined" !== typeof window)
 
 var Web3 = require('web3')
 var sigUtil = require('eth-sig-util')
-var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest
+var NodeHTTP = require('xmlhttprequest').XMLHttpRequest // for backend compatability
+var NodeForm = require('form-data')                     // for backend compatability
+    
+function new_HTTP() {
+    if (IN_BROWSER) return new XMLHttpRequest()
+    else return new NodeHTTP()
+}
+
+function new_Form() { // for sending files with XMLHttpRequest
+    if (IN_BROWSER) return new FormData()
+    else return new NodeForm()
+}
 
 exports.init = (debug, debugHost) => {    
     this.host = "https://www.immuto.io"
@@ -28,6 +40,22 @@ exports.init = (debug, debugHost) => {
 
     // for API acess
     this.authToken = ""
+    this.email = ""
+
+    // for Web3 connection (record creation/verification)
+    this.connected = false
+    let attemptConnection = false
+
+    if (IN_BROWSER) {
+        let ls = window.localStorage // preserve session across pages
+        if (ls.authToken && ls.email && ls.salt && ls.encryptedKey) {
+            this.salt = ls.salt
+            this.encryptedKey = ls.encryptedKey
+            this.authToken = ls.authToken
+            this.email = ls.email
+            attemptConnection = true
+        }
+    }
 
     this.utils = {
         convert_unix_time: function(time_ms) {
@@ -45,7 +73,7 @@ exports.init = (debug, debugHost) => {
         },
         emails_to_addresses: (emails) => {
             return new Promise((resolve, reject) => {
-                var http = new XMLHttpRequest()
+                var http = new_HTTP()
 
                 let sendstring = "emails=" + emails + "&authToken=" + this.authToken
 
@@ -57,6 +85,7 @@ exports.init = (debug, debugHost) => {
                             let addresses = JSON.parse(http.responseText) 
                             resolve(addresses)
                         } catch (err) {
+                            console.error(http.responseText)
                             reject(err)
                         }
                     } else if (http.readyState == 4) {
@@ -73,7 +102,7 @@ exports.init = (debug, debugHost) => {
                     addresses.push(event.signer)
                 }
 
-                var http = new XMLHttpRequest()
+                var http = new_HTTP()
 
                 let sendstring = "addresses=" + JSON.stringify(addresses) + "&authToken=" + this.authToken
 
@@ -110,6 +139,9 @@ exports.init = (debug, debugHost) => {
             let signature = sigUtil.concatSig(v, r, s)
             let address = sigUtil.recoverPersonalSignature({data: message, sig: signature})
             return this.web3.utils.toChecksumAddress(address)
+        },
+        is_valid_recordID: (ID) => {
+            this.web3.utils.isAddress(ID)
         }
     }
 
@@ -120,7 +152,7 @@ exports.init = (debug, debugHost) => {
                 return
             }
 
-            var http = new XMLHttpRequest()
+            var http = new_HTTP()
 
             let sendstring = "email=" + email.toLowerCase()
             http.open("GET", this.host + "/shard-public-node", true)
@@ -129,9 +161,15 @@ exports.init = (debug, debugHost) => {
                 if (http.readyState == 4 && http.status == 200) {
                     let URI = http.responseText
                     try {
-                        this.web3 = new Web3(URI)
-                        resolve()
+                        if (this.connected) {
+                            resolve() // concurrent call to this function has already succeeded
+                        } else { 
+                            this.web3 = new Web3(URI)
+                            this.connected = true
+                            resolve()
+                        }
                     } catch (err) {
+                        this.connected = false
                         reject(err)
                     }
                 } else if (http.readyState == 4) {
@@ -146,10 +184,16 @@ exports.init = (debug, debugHost) => {
         this.web3 = new Web3(URI)
     }
 
-    
+    if (attemptConnection) {
+        // safely concurrent with verification auto-connection calls
+        this.establish_connection(this.email)
+        .then(() => {}) // no need to do anything
+        .catch((err) => {console.error(err)})
+    }
+
     this.get_registration_token = function(address) {
         return new Promise((resolve, reject) => {
-            var http = new XMLHttpRequest()
+            var http = new_HTTP()
 
             let sendstring = "address=" + address
 
@@ -176,7 +220,7 @@ exports.init = (debug, debugHost) => {
 
             this.get_registration_token(address).then((token) => {
                 let signature = account.sign(token)
-                var http = new XMLHttpRequest()
+                var http = new_HTTP()
 
                 let sendstring = "email=" + email 
                 sendstring += "&password=" + this.web3.utils.sha3(password)
@@ -205,6 +249,11 @@ exports.init = (debug, debugHost) => {
 
     this.authenticate = function(email, password) {
         return new Promise((resolve, reject) => {
+            if (this.salt && this.encryptedKey && this.authToken && this.email) {
+                reject("User already authenticated. Call deauthenticate before authenticating a new user.")
+                return
+            } 
+
             if (!email) {
                 reject("Email required for authentication")
                 return
@@ -215,10 +264,10 @@ exports.init = (debug, debugHost) => {
             }
 
             this.establish_connection(email).then(() => {
-                let http = new XMLHttpRequest()
+                let http = new_HTTP()
 
                 let sendstring = "email=" + email 
-                sendstring += "&password=" + this.web3.utils.sha3(password)
+                sendstring += "&password=" + this.web3.utils.sha3(password) // server does not see password
 
                 http.open("POST", this.host + "/submit-login", true)
                 http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
@@ -228,7 +277,7 @@ exports.init = (debug, debugHost) => {
                         this.salt = response.salt
                         this.encryptedKey = response.encryptedKey
                         this.authToken = response.authToken
-                        
+
                         let account = undefined
                         try {
                             account = this.web3.eth.accounts.decrypt( 
@@ -246,11 +295,18 @@ exports.init = (debug, debugHost) => {
                         sendstring += "&signature=" + JSON.stringify(signature)
                         sendstring += "&authToken=" + this.authToken
 
-                        let http2 = new XMLHttpRequest()
+                        let http2 = new_HTTP()
                         http2.open("POST", this.host + "/prove-address", true)
                         http2.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                         http2.onreadystatechange = () => {
                             if (http2.readyState == 4 && http2.status == 204) {
+                                if (IN_BROWSER) {
+                                    window.localStorage.authToken = this.authToken
+                                    window.localStorage.email = email
+                                    window.localStorage.salt = this.salt
+                                    window.localStorage.encryptedKey = this.encryptedKey
+                                }
+                                this.email = email
                                 resolve(this.authToken)
                             } else if (http2.readyState == 4) {
                                 console.error("Error on login verification")
@@ -273,13 +329,20 @@ exports.init = (debug, debugHost) => {
 
     this.deauthenticate = function() {
         return new Promise((resolve, reject) => {
+            if (IN_BROWSER) {
+                window.localStorage.authToken = ""
+                window.localStorage.email = ""
+                window.localStorage.salt = ""
+                window.localStorage.encryptedKey = ""
+                window.localStorage.password = "" // in case this is set elsewhere
+            }
             this.authToken = ""
             this.email = ""
             this.salt = ""
             this.encryptedKey = ""
             this.connected = false
-
-            var http = new XMLHttpRequest();
+            
+            var http = new_HTTP();
             http.open("GET", this.host + "/logout-API", true);
             http.setRequestHeader('Accept', 'application/json, text/javascript');
             http.onreadystatechange = () => {
@@ -292,22 +355,6 @@ exports.init = (debug, debugHost) => {
 
             http.send();
         })
-    }
-
-    this.set_authentication = function(authToken, salt, keystore) {
-        throw "Unimplemented"
-
-        if (!authToken) {
-            throw "Invalid authToken: " + authToken
-        }
-
-        if (!salt) {
-            throw "Invalid salt: " + salt
-        }
-
-        if (!keystore) {
-             throw "Invalid keystore: " + keystore
-        }
     }
 
     // convenience method for signing an arbitrary string
@@ -342,15 +389,18 @@ exports.init = (debug, debugHost) => {
                     password + this.salt
                 );
             } catch(err) {
-                reject(err);
+                if (!this.email) {
+                    reject("User not yet authenticated.");
+                } else {
+                    reject("User password invalid")
+                }
                 return;
             }
 
             let signature = account.sign(content)
             signature.message = "" // Maintain data privacy
 
-            var xhr = new XMLHttpRequest();
-            //var fd = new FormData();
+            var xhr = new_HTTP();
             let sendstring = ""
 
             xhr.open("POST", this.host + "/submit-new-data-upload", true);
@@ -390,8 +440,7 @@ exports.init = (debug, debugHost) => {
                 let signature = account.sign(newContent + priorHash)
                 signature.message = "" // Waste of space to send full message
 
-                var xhr = new XMLHttpRequest();
-                //var fd = new FormData();
+                var xhr = new_HTTP();
                 let sendstring = ""
 
                 xhr.open("POST", this.host + "/update-data-storage", true);
@@ -416,7 +465,7 @@ exports.init = (debug, debugHost) => {
 
     this.get_data_management_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
-            if (this.web3) { // be more thorough later
+            if (this.connected) { 
                 let contract = undefined
                 if (type === "basic") {
                     contract = new this.web3.eth.Contract(BASIC_DATA_STORAGE_ABI, recordID);
@@ -428,7 +477,7 @@ exports.init = (debug, debugHost) => {
                 }
                 
                 contract.getPastEvents('Updated', {
-                   fromBlock: 0
+                    fromBlock: 0
                 })
                 .then((events) => {
                     let history = []
@@ -445,7 +494,21 @@ exports.init = (debug, debugHost) => {
                     reject(err)
                 })
             } else {
-               reject("Connection to verification server not established. Call establish_connection to setup a connection.")
+                if (!this.email) {
+                    reject("User not yet authenticated. No email provided.")
+                    return
+                } else { 
+                    this.establish_connection(this.email).then(() => {
+                        // this.connected is now true, can safely recurse once
+                        this.get_data_management_history(recordID, type).then((history) => {
+                            resolve(history)
+                        }).catch((err) => {
+                            reject(err)
+                        })
+                    }).catch((err) => {
+                        reject("Unable to establish connection")
+                    })
+                }
             }
         })
     }
@@ -468,7 +531,7 @@ exports.init = (debug, debugHost) => {
                         }
                         resolve(false)
                     }).catch((err) => {
-                        console.error(err)
+                        reject(err)
                     })
                 }).catch((err) => {
                     reject(err)
@@ -488,15 +551,19 @@ exports.init = (debug, debugHost) => {
                     password + this.salt
                 );
             } catch(err) {
-                return err;
+                if (!this.email) {
+                    reject("User not yet authenticated.");
+                } else {
+                    reject("User password invalid")
+                }
+                return;
             }
 
             let hashedData = this.web3.utils.sha3(content)
             let signature = account.sign(hashedData)
             signature.message = "" // Unnecessary for request
 
-            var xhr = new XMLHttpRequest();
-            //var fd = new FormData();
+            var xhr = new_HTTP();
             let sendstring = ""
 
             xhr.open("POST", this.host + "/submit-new-agreement-upload", true);
@@ -519,7 +586,6 @@ exports.init = (debug, debugHost) => {
 
             xhr.send(sendstring);
         })
-
     }
 
     this.sign_digital_agreement = function(recordID, password) {
@@ -534,7 +600,7 @@ exports.init = (debug, debugHost) => {
                 return err;
             }
 
-            var http = new XMLHttpRequest()
+            var http = new_HTTP()
 
             let sendstring = "contractAddr=" + recordID 
             sendstring += "&authToken=" + this.authToken 
@@ -549,8 +615,7 @@ exports.init = (debug, debugHost) => {
                     let signature = account.sign(currentHash)
                     signature.message = "" // Unnecessary for request
 
-                    var xhr = new XMLHttpRequest();
-                    //var fd = new FormData();
+                    var xhr = new_HTTP();
                     sendstring = ""
 
                     xhr.open("POST", this.host + "/sign-agreement", true);
@@ -562,11 +627,11 @@ exports.init = (debug, debugHost) => {
                             reject(xhr.responseText)
                         }
                     };
+                    
                     sendstring += 'contractAddr=' + recordID
                     sendstring += '&signature=' + JSON.stringify(signature)
                     sendstring += '&authToken=' + this.authToken
-
-                    xhr.send(sendstring);
+                    xhr.send(fd);
                 } else if (http.readyState == 4) {
                     reject(http.responseText)
                 }
@@ -595,8 +660,7 @@ exports.init = (debug, debugHost) => {
             let signature = account.sign(dataHash)
             signature.message = "" // Unnecessary for request
 
-            var xhr = new XMLHttpRequest();
-            //var fd = new FormData();
+            var xhr = new_HTTP();
             let sendstring = ""
 
             xhr.open("POST", this.host + "/update-agreement", true);
@@ -621,7 +685,7 @@ exports.init = (debug, debugHost) => {
     this.verify_digital_agreement = function(recordID, type, verificationContent) {
         return new Promise((resolve, reject) => {
             if (this.web3) { // be more thorough later
-                var http = new XMLHttpRequest()
+                var http = new_HTTP()
 
                 let sendstring = "contractAddr=" + recordID 
                 sendstring += "&authToken=" + this.authToken 
@@ -723,7 +787,7 @@ exports.init = (debug, debugHost) => {
 
     this.get_digital_agreement_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
-            if (this.web3) { // be more thorough later
+            if (this.connected) { 
                 let contract = undefined
                 if (type === "single_sign") {
                     contract = new this.web3.eth.Contract(SINGLE_SIGN_AGREEMENT_ABI, recordID);
@@ -758,7 +822,21 @@ exports.init = (debug, debugHost) => {
                     reject(err)
                 })
             } else {
-               reject("Connection to verification server not established. Call establish_connection to setup a connection.")
+                if (!this.email) {
+                    reject("User not yet authenticated. No email provided.")
+                    return
+                } else { 
+                    this.establish_connection(this.email).then(() => {
+                        // this.connected is now true, can safely recurse once
+                        this.get_digital_agreement_history(recordID, type).then((history) => {
+                            resolve(history)
+                        }).catch((err) => {
+                            reject(err)
+                        })
+                    }).catch((err) => {
+                        reject("Unable to establish connection")
+                    })
+                }
             }
         })
     }

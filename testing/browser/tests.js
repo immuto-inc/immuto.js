@@ -13,7 +13,7 @@ if (!password) {
 
 let currentSession = prompt("Test current session? Leave blank for new session.")
 
-let im = Immuto.init(true, "https://dev.immuto.io")
+let im = Immuto.init(true, "http://localhost:8000")
 
 async function run_tests() {
     await im.deauthenticate()// ensure user not logged in to start tests
