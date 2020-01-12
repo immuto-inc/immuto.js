@@ -143,7 +143,7 @@ exports.init = (debug, debugHost) => {
             return this.web3.utils.toChecksumAddress(address)
         },
         is_valid_recordID: (ID) => {
-            this.web3.utils.isAddress(ID)
+            return this.web3.utils.isAddress(ID)
         }
     }
 
@@ -426,6 +426,10 @@ exports.init = (debug, debugHost) => {
 
     this.update_data_management = function(recordID, newContent, password) {
         return new Promise((resolve, reject) => {
+            if (!this.utils.is_valid_recordID(recordID)) {
+                reject("Invalid recordID"); return; 
+            }
+
             let account = undefined;
             try {
                 account = this.web3.eth.accounts.decrypt(
@@ -467,6 +471,10 @@ exports.init = (debug, debugHost) => {
 
     this.get_data_management_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
+            if (!this.utils.is_valid_recordID(recordID)) {
+                reject("Invalid recordID"); return; 
+            }
+
             if (this.connected) { 
                 let contract = undefined
                 if (type === "basic") {
@@ -517,6 +525,10 @@ exports.init = (debug, debugHost) => {
 
     this.verify_data_management = function (recordID, type, verificationContent) {
         return new Promise((resolve, reject) => {
+            if (!this.utils.is_valid_recordID(recordID)) {
+                reject("Invalid recordID"); return; 
+            }
+
             if (this.web3) { // be more thorough later
                 this.get_data_management_history(recordID, type).then((history) => {
                     this.utils.addresses_to_emails(history).then((history) => {
@@ -592,6 +604,10 @@ exports.init = (debug, debugHost) => {
 
     this.sign_digital_agreement = function(recordID, password) {
         return new Promise((resolve, reject) => {
+            if (!this.utils.is_valid_recordID(recordID)) {
+                reject("Invalid recordID"); return; 
+            }
+
             let account = undefined;
             try {
                 account = this.web3.eth.accounts.decrypt(
@@ -629,7 +645,7 @@ exports.init = (debug, debugHost) => {
                             reject(xhr.responseText)
                         }
                     };
-                    
+
                     sendstring += 'contractAddr=' + recordID
                     sendstring += '&signature=' + JSON.stringify(signature)
                     sendstring += '&authToken=' + this.authToken
@@ -647,6 +663,10 @@ exports.init = (debug, debugHost) => {
 
     this.update_digital_agreement = function(recordID, newContent, password) {
         return new Promise((resolve, reject) => {
+            if (!this.utils.is_valid_recordID(recordID)) {
+                reject("Invalid recordID"); return; 
+            }
+
             let account = undefined;
             try {
                 account = this.web3.eth.accounts.decrypt(
@@ -686,6 +706,10 @@ exports.init = (debug, debugHost) => {
 
     this.verify_digital_agreement = function(recordID, type, verificationContent) {
         return new Promise((resolve, reject) => {
+            if (!this.utils.is_valid_recordID(recordID)) {
+                reject("Invalid recordID"); return; 
+            }
+
             if (this.web3) { // be more thorough later
                 var http = new_HTTP()
 
@@ -789,6 +813,10 @@ exports.init = (debug, debugHost) => {
 
     this.get_digital_agreement_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
+            if (!this.utils.is_valid_recordID(recordID)) {
+                reject("Invalid recordID"); return; 
+            }
+
             if (this.connected) { 
                 let contract = undefined
                 if (type === "single_sign") {
