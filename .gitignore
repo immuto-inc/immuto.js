@@ -1,3 +1,4 @@
 **/node_modules
 **set_vars.sh
+browser/build_and_mv_to_immuto.sh
 **.DS_Store

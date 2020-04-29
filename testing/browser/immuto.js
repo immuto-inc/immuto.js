@@ -9,7 +9,10 @@ var Web3 = require('web3')
 var sigUtil = require('eth-sig-util')
 var NodeHTTP = require('xmlhttprequest').XMLHttpRequest // for backend compatability
 var NodeForm = require('form-data')                     // for backend compatability
-    
+var crypto = require('crypto')
+
+const SYMMETRIC_SCHEME="aes-256-ctr"
+
 function new_HTTP() {
     if (IN_BROWSER) return new XMLHttpRequest()
     else return new NodeHTTP()
@@ -143,7 +146,19 @@ exports.init = (debug, debugHost) => {
             return this.web3.utils.toChecksumAddress(address)
         },
         is_valid_recordID: (ID) => {
-            return this.web3.utils.isAddress(ID)
+            
+            if (!ID) return false;
+            if ("string" !== typeof ID) return false;
+
+            let idLength = ID.length
+
+            if (40 === idLength || 42 === idLength) {
+                // isAddress returns true with or without leading 0x
+                // isAddress returns true if ID is a string and false if it's an integer
+                return this.web3.utils.isAddress(ID) 
+            }
+            
+            return false
         }
     }
 
@@ -331,6 +346,8 @@ exports.init = (debug, debugHost) => {
 
     this.deauthenticate = function() {
         return new Promise((resolve, reject) => {
+            let sendstring = `authToken=${this.authToken}`
+
             if (IN_BROWSER) {
                 window.localStorage.authToken = ""
                 window.localStorage.email = ""
@@ -345,8 +362,8 @@ exports.init = (debug, debugHost) => {
             this.connected = false
             
             var http = new_HTTP();
-            http.open("GET", this.host + "/logout-API", true);
-            http.setRequestHeader('Accept', 'application/json, text/javascript');
+            http.open("POST", this.host + "/logout-API", true);
+            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             http.onreadystatechange = () => {
                 if (http.readyState == 4 && http.status == 204) {
                     resolve() 
@@ -354,8 +371,7 @@ exports.init = (debug, debugHost) => {
                     reject(http.responseText)
                 }
             };
-
-            http.send();
+            http.send(sendstring);
         })
     }
 
@@ -379,6 +395,50 @@ exports.init = (debug, debugHost) => {
             return;
         }
     }
+
+    this.generate_key_from_password = function(password) {
+        const salt = this.salt
+        if (!salt) {
+            throw("User must be authenticated to generate key")
+        }
+
+        // cannot be SHA256, or Immuto backend could decrypt user data on login with current auth scheme
+        const hash = crypto.createHash("sha512")
+        hash.update(password + salt);
+        return hash.digest().slice(0, 32) // key for aes-256 must be 32 bytes
+    }
+
+    this.encrypt_string_with_key = function(plaintext, key) {
+        const iv = crypto.randomBytes(16)
+        const cipher = crypto.createCipheriv(SYMMETRIC_SCHEME, key, iv)
+        let ciphertext = cipher.update(plaintext, 'binary', 'binary');
+        ciphertext += cipher.final('binary');
+
+        return {
+            ciphertext: ciphertext,
+            key: key,
+            iv: iv
+        }
+    }
+
+    this.encrypt_string_with_password = function(plaintext, password) {
+        if (!password) throw("No password provided");
+
+        key = this.generate_key_from_password(password)
+        return this.encrypt_string_with_key(plaintext, key)
+    }
+
+    this.encrypt_string = function(plaintext) {
+        const key = crypto.randomBytes(32)
+        return this.encrypt_string_with_key(plaintext, key)
+    }
+
+    this.decrypt_string = function(ciphertext, key, iv) {
+        let decipher = crypto.createDecipheriv(SYMMETRIC_SCHEME, key, iv)
+        let decrypted = decipher.update(ciphertext, 'binary', 'binary');
+        return decrypted + decipher.final('binary');
+    }
+
 
     this.create_data_management = function(content, name, type, password, desc) {
         return new Promise((resolve, reject) => {
@@ -1138,7 +1198,7 @@ const MULTISIG_AGREEMENT_ABI = [
 ]
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":358,"eth-sig-util":96,"form-data":154,"web3":292,"xmlhttprequest":305}],2:[function(require,module,exports){
+},{"buffer":358,"crypto":367,"eth-sig-util":96,"form-data":154,"web3":292,"xmlhttprequest":305}],2:[function(require,module,exports){
 module.exports = require('scryptsy');
 
 },{"scryptsy":214}],3:[function(require,module,exports){

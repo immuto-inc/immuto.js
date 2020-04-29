@@ -13,6 +13,7 @@ if (!password) {
    process.exit()
 }
 
+//let im = Immuto.init(true, "https://dev.immuto.io")
 let im = Immuto.init(true, "http://localhost:8000")
 run_tests()
 
@@ -86,6 +87,12 @@ async function run_tests() {
         console.error("Failed digital agreement tests (with auto connect)")
         console.error(err)
     }
+
+    if (test_encryption()) {
+        console.log("Encryption tests successful!");
+    } else {
+        console.error("Failed encryption tests")
+    }
  }
 
 // parallel requests should all be successful, including automatic from attempt connection
@@ -157,4 +164,54 @@ async function digital_agreement_tests() {
     } catch(err) {
         return err
     }
+}
+
+function test_encryption() {
+    let plaintext = "hello world"
+    let password = "PASSWORD"
+
+    let cipherObject = im.encrypt_string(plaintext)
+    if (cipherObject.ciphertext == plaintext) {
+        console.error("encrypt_string did not modify the plaintext at all...")
+        return false
+    }
+
+    let ciphertext = cipherObject.ciphertext
+    let key = cipherObject.key
+    let iv = cipherObject.iv
+    if (im.decrypt_string(ciphertext, key, iv) !== plaintext) {
+        console.error("Failed to decrypt correct plaintext")
+        return false
+    }
+
+    key = im.generate_key_from_password(password)
+    cipherObject = im.encrypt_string_with_key(plaintext, key)
+    if (cipherObject.ciphertext == plaintext) {
+        console.error("encrypt_string did not modify the plaintext at all... (using passgen key)")
+        return false
+    }
+
+    ciphertext = cipherObject.ciphertext
+    key = cipherObject.key
+    iv = cipherObject.iv
+    if (im.decrypt_string(ciphertext, key, iv) !== plaintext) {
+        console.error("Failed to decrypt correct plaintext (using passgen key)")
+        return false
+    }
+
+    cipherObject = im.encrypt_string_with_password(plaintext, password)
+    if (cipherObject.ciphertext == plaintext) {
+        console.error("encrypt_string did not modify the plaintext at all... (using convenience passgen key)")
+        return false
+    }
+
+    ciphertext = cipherObject.ciphertext
+    key = cipherObject.key
+    iv = cipherObject.iv
+    if (im.decrypt_string(ciphertext, key, iv) !== plaintext) {
+        console.error("Failed to decrypt correct plaintext (using convenience passgen key)")
+        return false
+    }
+
+    return true
 }
