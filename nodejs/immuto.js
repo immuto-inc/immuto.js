@@ -46,10 +46,6 @@ exports.init = function(debug, debugHost) {
     this.authToken = ""
     this.email = ""
 
-    // for Web3 connection (record creation/verification)
-    this.connected = false
-    let attemptConnection = false
-
     if (IN_BROWSER) {
         let ls = window.localStorage // preserve session across pages
         if (ls.authToken && ls.email && ls.salt && ls.encryptedKey) {
@@ -57,7 +53,6 @@ exports.init = function(debug, debugHost) {
             this.encryptedKey = ls.encryptedKey
             this.authToken = ls.authToken
             this.email = ls.email
-            attemptConnection = true
         }
     }
 
@@ -215,54 +210,6 @@ exports.init = function(debug, debugHost) {
         }
     }
 
-    this.establish_connection = function(email) {
-        return new Promise((resolve, reject) => {
-            if (!email) {
-                reject("Email required for connection")
-                return
-            }
-
-            var http = new_HTTP()
-
-            let query = "?authToken=" + this.authToken
-
-            http.open("GET", this.host + "/shard-public-node" + query, true)
-            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-            http.onreadystatechange = () => {
-                if (http.readyState === 4 && http.status === 200) {
-                    let URI = http.responseText
-
-                    try {
-                        if (this.connected) {
-                            resolve() // concurrent call to this function has already succeeded
-                        } else { 
-                            this.web3 = new Web3(URI)
-                            this.connected = true
-                            resolve()
-                        }
-                    } catch (err) {
-                        this.connected = false
-                        reject(err)
-                    }
-                } else if (http.readyState === 4) {
-                    reject(http.responseText)
-                }
-            }
-            http.send()
-        })
-    }
-
-    this.establish_manual_connection = function(URI) {
-        this.web3 = new Web3(URI)
-    }
-
-    if (attemptConnection) {
-        // safely concurrent with verification auto-connection calls
-        this.establish_connection(this.email)
-        .then(() => {}) // no need to do anything
-        .catch((err) => {console.error(err)})
-    }
-
     this.get_registration_token = function(address) {
         return new Promise((resolve, reject) => {
             var http = new_HTTP()
@@ -360,81 +307,77 @@ exports.init = function(debug, debugHost) {
                 return
             }
 
-            this.establish_connection(email).then(() => {
-                let http = new_HTTP()
+            let http = new_HTTP()
 
-                let sendstring = "email=" + email 
-                sendstring += "&password=" + this.web3.utils.sha3(password) // server does not see password
+            let sendstring = "email=" + email 
+            sendstring += "&password=" + this.web3.utils.sha3(password) // server does not see password
 
-                http.open("POST", this.host + "/submit-login", true)
-                http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-                http.onreadystatechange = () => {
-                    if (http.readyState === 4 && http.status === 200) {
-                        let response = JSON.parse(http.responseText)
-                        this.salt = response.salt
-                        this.encryptedKey = response.encryptedKey
-                        this.authToken = response.authToken
+            http.open("POST", this.host + "/submit-login", true)
+            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            http.onreadystatechange = () => {
+                if (http.readyState === 4 && http.status === 200) {
+                    let response = JSON.parse(http.responseText)
+                    this.salt = response.salt
+                    this.encryptedKey = response.encryptedKey
+                    this.authToken = response.authToken
 
-                        let account = undefined
-                        try {
-                            account = this.web3.eth.accounts.decrypt( 
-                                this.encryptedKey, 
-                                password + this.salt 
-                            );
-                        } catch(err) {
-                            reject("Incorrect password")
-                            return
-                        }
-                        
-                        let signature = account.sign(this.authToken)
-                        let sendstring = "address=" + account.address
-                        sendstring += "&signature=" + JSON.stringify(signature)
-                        sendstring += "&authToken=" + this.authToken
-                        sendstring += "&returnUserInfo=" + true
-
-                        let http2 = new_HTTP()
-                        http2.open("POST", this.host + "/prove-address", true)
-                        http2.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-                        http2.onreadystatechange = () => {
-                            if (http2.readyState === 4 && (http2.status === 204 || http2.status === 200)) {
-                                if (IN_BROWSER) {
-                                    window.localStorage.authToken = this.authToken
-                                    window.localStorage.email = email
-                                    window.localStorage.salt = this.salt
-                                    window.localStorage.encryptedKey = this.encryptedKey
-                                }
-                                this.email = email
-
-                                if (http2.status === 204) {
-                                    resolve(this.authToken)
-                                    return
-                                }
-
-                                let userInfo = JSON.parse(http2.responseText)
-                                if (userInfo.publicKey) {
-                                    resolve(this.authToken)
-                                    return
-                                }
-
-                                this.generate_RSA_keypair(password)
-                                .catch(err => console.error(err))
-                                .finally(() => resolve(this.authToken))
-                            } else if (http2.readyState === 4) {
-                                console.error("Error on login verification")
-                                reject(http2.responseText)
-                            }
-                        }
-                        http2.send(sendstring)
-                    } else if (http.readyState === 4){
-                        console.error("Error on login")
-                        reject(http.status + ": " + http.responseText)
+                    let account = undefined
+                    try {
+                        account = this.web3.eth.accounts.decrypt( 
+                            this.encryptedKey, 
+                            password + this.salt 
+                        );
+                    } catch(err) {
+                        reject("Incorrect password")
+                        return
                     }
+                    
+                    let signature = account.sign(this.authToken)
+                    let sendstring = "address=" + account.address
+                    sendstring += "&signature=" + JSON.stringify(signature)
+                    sendstring += "&authToken=" + this.authToken
+                    sendstring += "&returnUserInfo=" + true
+
+                    let http2 = new_HTTP()
+                    http2.open("POST", this.host + "/prove-address", true)
+                    http2.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+                    http2.onreadystatechange = () => {
+                        if (http2.readyState === 4 && (http2.status === 204 || http2.status === 200)) {
+                            if (IN_BROWSER) {
+                                window.localStorage.authToken = this.authToken
+                                window.localStorage.email = email
+                                window.localStorage.salt = this.salt
+                                window.localStorage.encryptedKey = this.encryptedKey
+                            }
+                            this.email = email
+
+                            if (http2.status === 204) {
+                                resolve(this.authToken)
+                                return
+                            }
+
+                            let userInfo = JSON.parse(http2.responseText)
+                            if (userInfo.publicKey) {
+                                resolve(this.authToken)
+                                return
+                            }
+
+                            this.generate_RSA_keypair(password)
+                            .catch(err => console.error(err))
+                            .finally(() => resolve(this.authToken))
+                        } else if (http2.readyState === 4) {
+                            console.error("Error on login verification")
+                            reject(http2.responseText)
+                        }
+                    }
+                    http2.send(sendstring)
+                } else if (http.readyState === 4){
+                    console.error("Error on login")
+                    reject(http.status + ": " + http.responseText)
                 }
-                http.send(sendstring)
-            }).catch((err) => {
-                console.error(err)
-                reject("Could not establish connection to verification server")
-            })
+            }
+            http.send(sendstring)
+
         })
     }
 
@@ -456,7 +399,6 @@ exports.init = function(debug, debugHost) {
             this.email = ""
             this.salt = ""
             this.encryptedKey = ""
-            this.connected = false
             
             var http = new_HTTP();
             http.open("POST", this.host + "/logout-API", true);
@@ -1238,104 +1180,100 @@ exports.init = function(debug, debugHost) {
                 reject("Invalid recordID"); return; 
             }
 
-            if (this.web3) { // be more thorough later
-                var http = new_HTTP()
+            var http = new_HTTP()
 
-                let sendstring = "contractAddr=" + recordID 
-                sendstring += "&authToken=" + this.authToken 
+            let sendstring = "contractAddr=" + recordID 
+            sendstring += "&authToken=" + this.authToken 
 
-                http.open("POST", this.host + "/get-contract-info", true)
-                http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-                http.onreadystatechange = () => {
-                    if (http.readyState === 4 && http.status === 200) {
-                        let response = JSON.parse(http.responseText)
-                        let hashes =  response.hashes
-                        let hash = this.web3.utils.sha3(verificationContent)
-                        let emails = response.signers
-                        if (emails) {
-                            this.get_digital_agreement_history(recordID, type).then((history) => {
-                                this.utils.emails_to_addresses(JSON.stringify(emails)).then((addresses) => {
-                                    let validSignatures = []
-                                    addresses.push(response.userAddr)
-                                    for (let i = 0; i < addresses.length; i++) {
-                                        addresses[i] = addresses[i].toLowerCase()
-                                    }
-                                    let addressLookup = new Set(addresses)
-                                    let currentVersion = 0
+            http.open("POST", this.host + "/get-contract-info", true)
+            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            http.onreadystatechange = () => {
+                if (http.readyState === 4 && http.status === 200) {
+                    let response = JSON.parse(http.responseText)
+                    let hashes =  response.hashes
+                    let hash = this.web3.utils.sha3(verificationContent)
+                    let emails = response.signers
+                    if (emails) {
+                        this.get_digital_agreement_history(recordID, type).then((history) => {
+                            this.utils.emails_to_addresses(JSON.stringify(emails)).then((addresses) => {
+                                let validSignatures = []
+                                addresses.push(response.userAddr)
+                                for (let i = 0; i < addresses.length; i++) {
+                                    addresses[i] = addresses[i].toLowerCase()
+                                }
+                                let addressLookup = new Set(addresses)
+                                let currentVersion = 0
 
-                                    for (let i = 0; i < history.length; i++) {
-                                        let sig = history[i].signature
+                                for (let i = 0; i < history.length; i++) {
+                                    let sig = history[i].signature
 
-                                        //causes extra if original hash correct, rest not
-                                        for (let j = currentVersion; j < hashes.length; j++) {
-                                            if (j > i) break;
-                                            if (hashes[j].toLowerCase() === hash.toLowerCase()) {
-                                                let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
-                                                if (addressLookup.has(address.toLowerCase())) {
-                                                    validSignatures.push({
-                                                        version: j,
-                                                        timestamp: history[i].timestamp,
-                                                        hash: hash,
-                                                        signer: address,
-                                                        email: history[i]
-                                                    })
-                                                    break;
-                                                } else {
-                                                    currentVersion ++
-                                                }
+                                    //causes extra if original hash correct, rest not
+                                    for (let j = currentVersion; j < hashes.length; j++) {
+                                        if (j > i) break;
+                                        if (hashes[j].toLowerCase() === hash.toLowerCase()) {
+                                            let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
+                                            if (addressLookup.has(address.toLowerCase())) {
+                                                validSignatures.push({
+                                                    version: j,
+                                                    timestamp: history[i].timestamp,
+                                                    hash: hash,
+                                                    signer: address,
+                                                    email: history[i]
+                                                })
+                                                break;
+                                            } else {
+                                                currentVersion ++
                                             }
                                         }
                                     }
-                                    if (validSignatures.length > 0) {
-                                        this.utils.addresses_to_emails(validSignatures).then((validSignatures) => {
-                                            resolve(validSignatures)
-                                        }).catch((err) => {
-                                            reject(err)
-                                        })
-                                    }
-                                    else {
-                                        resolve(false)
-                                    }
-                                }).catch((err) => {
-                                    reject(err)
-                                })
+                                }
+                                if (validSignatures.length > 0) {
+                                    this.utils.addresses_to_emails(validSignatures).then((validSignatures) => {
+                                        resolve(validSignatures)
+                                    }).catch((err) => {
+                                        reject(err)
+                                    })
+                                }
+                                else {
+                                    resolve(false)
+                                }
                             }).catch((err) => {
                                 reject(err)
                             })
-                        } else {
-                            this.get_digital_agreement_history(recordID, type).then((history) => {
-                                let sig = history[0].signature
+                        }).catch((err) => {
+                            reject(err)
+                        })
+                    } else {
+                        this.get_digital_agreement_history(recordID, type).then((history) => {
+                            let sig = history[0].signature
 
-                                let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
-                                this.utils.addresses_to_emails([{signer: address}]).then((emails) => {
-                                    if (address.toLowerCase() === response.userAddr.toLowerCase()) {
-                                        resolve([{
-                                            version: 0,
-                                            timestamp: history[0].timestamp,
-                                            hash: hash,
-                                            signer: address,
-                                            email: emails[0].email
-                                        }])
-                                    } else {
-                                        resolve(false)
-                                    }
-                                }).catch((err) => {
-                                    reject(err)
-                                })
+                            let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
+                            this.utils.addresses_to_emails([{signer: address}]).then((emails) => {
+                                if (address.toLowerCase() === response.userAddr.toLowerCase()) {
+                                    resolve([{
+                                        version: 0,
+                                        timestamp: history[0].timestamp,
+                                        hash: hash,
+                                        signer: address,
+                                        email: emails[0].email
+                                    }])
+                                } else {
+                                    resolve(false)
+                                }
                             }).catch((err) => {
                                 reject(err)
                             })
-                        }
-
-                        
-                    } else if (http.readyState === 4) {
-                        reject(http.responseText)
+                        }).catch((err) => {
+                            reject(err)
+                        })
                     }
+
+                    
+                } else if (http.readyState === 4) {
+                    reject(http.responseText)
                 }
-                http.send(sendstring) 
-            } else {
-               reject("Connection to verification server not established. Call establish_connection to setup a connection.")
             }
+            http.send(sendstring) 
         })
     }
 
@@ -1345,57 +1283,39 @@ exports.init = function(debug, debugHost) {
                 reject("Invalid recordID"); return; 
             }
 
-            if (this.connected) { 
-                let contract = undefined
-                if (type === "single_sign") {
-                    contract = new this.web3.eth.Contract(SINGLE_SIGN_AGREEMENT_ABI, recordID);
-                } else if (type === "multisig") {
-                    contract = new this.web3.eth.Contract(MULTISIG_AGREEMENT_ABI, recordID);
-                } else {
-                    reject("Invalid contract type: " + type)
-                    return
-                }
-                
-                contract.getPastEvents('Signed', {
-                    fromBlock: 0,
-                    toBlock: 'latest'
-                })
-                .then((events) => {
-                    let history = []
-                    for (let i = 0; i < events.length; i++) {
-                        let event = events[i]
-
-                        let v = event.returnValues.v
-                        let r = event.returnValues.r
-                        let s = event.returnValues.s
-                        let signature = {v: v, r: r, s: s}
-
-                        history.push({
-                            timestamp: this.utils.convert_unix_time(event.returnValues.timestamp),
-                            signature: signature
-                        })
-                    }
-                    resolve(history)
-                }).catch((err) => {
-                    reject(err)
-                })
+            let contract = undefined
+            if (type === "single_sign") {
+                contract = new this.web3.eth.Contract(SINGLE_SIGN_AGREEMENT_ABI, recordID);
+            } else if (type === "multisig") {
+                contract = new this.web3.eth.Contract(MULTISIG_AGREEMENT_ABI, recordID);
             } else {
-                if (!this.email) {
-                    reject("User not yet authenticated. No email provided.")
-                    return
-                } else { 
-                    this.establish_connection(this.email).then(() => {
-                        // this.connected is now true, can safely recurse once
-                        this.get_digital_agreement_history(recordID, type).then((history) => {
-                            resolve(history)
-                        }).catch((err) => {
-                            reject(err)
-                        })
-                    }).catch((err) => {
-                        reject("Unable to establish connection")
+                reject("Invalid contract type: " + type)
+                return
+            }
+            
+            contract.getPastEvents('Signed', {
+                fromBlock: 0,
+                toBlock: 'latest'
+            })
+            .then((events) => {
+                let history = []
+                for (let i = 0; i < events.length; i++) {
+                    let event = events[i]
+
+                    let v = event.returnValues.v
+                    let r = event.returnValues.r
+                    let s = event.returnValues.s
+                    let signature = {v: v, r: r, s: s}
+
+                    history.push({
+                        timestamp: this.utils.convert_unix_time(event.returnValues.timestamp),
+                        signature: signature
                     })
                 }
-            }
+                resolve(history)
+            }).catch((err) => {
+                reject(err)
+            })
         })
     }
     return this
