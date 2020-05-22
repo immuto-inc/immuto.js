@@ -8,6 +8,7 @@ var sigUtil = require('eth-sig-util')
 var NodeHTTP = require('xmlhttprequest').XMLHttpRequest // for backend compatability
 var NodeForm = require('form-data')                     // for backend compatability
 var crypto = require('crypto')
+const NodeRSA = require('node-rsa');
 
 const SYMMETRIC_SCHEME="aes-256-ctr"
 
@@ -21,7 +22,7 @@ function new_Form() { // for sending files with XMLHttpRequest
     else return new NodeForm()
 }
 
-exports.init = (debug, debugHost) => {    
+exports.init = function(debug, debugHost) {    
     this.host = "https://www.immuto.io"
     if (debug === true) {
         if (debugHost)
@@ -34,7 +35,7 @@ exports.init = (debug, debugHost) => {
         this.web3 = new Web3("https://www.immuto.io") // Dummy provider because required on init now
     } catch(err) {
         console.error(err)
-        throw "Web3js is a required dependency of the Immuto API. Make sure it is included wherever immuto.js is present."
+        throw new Error("Web3js is a required dependency of the Immuto API. Make sure it is included wherever immuto.js is present.")
     }
     
     // for web3 account management
@@ -74,6 +75,9 @@ exports.init = (debug, debugHost) => {
             var time = date + ' ' + month + ' ' + year + ' ' + hour + ':' + min + ':' + sec ;
             return time;
         },
+        convert_js_time: function(time_js) {
+            return this.convert_unix_time(time_js / 1000)
+        },
         emails_to_addresses: (emails) => {
             return new Promise((resolve, reject) => {
                 var http = new_HTTP()
@@ -83,7 +87,7 @@ exports.init = (debug, debugHost) => {
                 http.open("POST", this.host + "/emails-to-addresses", true)
                 http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 http.onreadystatechange = function() {
-                    if (http.readyState == 4 && http.status == 200) {
+                    if (http.readyState === 4 && http.status === 200) {
                         try {
                             let addresses = JSON.parse(http.responseText) 
                             resolve(addresses)
@@ -91,7 +95,7 @@ exports.init = (debug, debugHost) => {
                             console.error(http.responseText)
                             reject(err)
                         }
-                    } else if (http.readyState == 4) {
+                    } else if (http.readyState === 4) {
                         reject(http.responseText)
                     }
                 }
@@ -100,7 +104,7 @@ exports.init = (debug, debugHost) => {
         },
         addresses_to_emails: (history) => {
             return new Promise((resolve, reject) => {
-                addresses = []
+                let addresses = []
                 for (let event of history) {
                     addresses.push(event.signer)
                 }
@@ -112,7 +116,7 @@ exports.init = (debug, debugHost) => {
                 http.open("POST", this.host + "/addresses-to-emails", true)
                 http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 http.onreadystatechange = function() {
-                    if (http.readyState == 4 && http.status == 200) {
+                    if (http.readyState === 4 && http.status === 200) {
                         try {
                             let addrToEmail = JSON.parse(http.responseText) 
                             for (let i = 0; i < history.length; i++) {
@@ -122,7 +126,7 @@ exports.init = (debug, debugHost) => {
                         } catch (err) {
                             reject(err)
                         }
-                    } else if (http.readyState == 4) {
+                    } else if (http.readyState === 4) {
                         reject(http.responseText)
                     }
                 }
@@ -130,7 +134,7 @@ exports.init = (debug, debugHost) => {
             })
         },
         ecRecover: (message, v, r, s) => {
-            if (v == '28') {
+            if (v === '28') {
                     v = Buffer.from('1c', 'hex')
             } else {
                     v = Buffer.from('1b', 'hex')
@@ -169,12 +173,14 @@ exports.init = (debug, debugHost) => {
 
             var http = new_HTTP()
 
-            let sendstring = "email=" + email.toLowerCase()
-            http.open("GET", this.host + "/shard-public-node", true)
+            let query = "?authToken=" + this.authToken
+
+            http.open("GET", this.host + "/shard-public-node" + query, true)
             http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             http.onreadystatechange = () => {
-                if (http.readyState == 4 && http.status == 200) {
+                if (http.readyState === 4 && http.status === 200) {
                     let URI = http.responseText
+
                     try {
                         if (this.connected) {
                             resolve() // concurrent call to this function has already succeeded
@@ -187,11 +193,11 @@ exports.init = (debug, debugHost) => {
                         this.connected = false
                         reject(err)
                     }
-                } else if (http.readyState == 4) {
+                } else if (http.readyState === 4) {
                     reject(http.responseText)
                 }
             }
-            http.send(sendstring)
+            http.send()
         })
     }
 
@@ -213,14 +219,14 @@ exports.init = (debug, debugHost) => {
             let sendstring = "address=" + address
 
             http.open("POST", this.host + "/get-signature-data", true)
-            http.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
 
             http.onreadystatechange = () => {
-                    if (http.readyState == 4 && http.status == 200) {
-                        resolve(http.responseText)
-                    } else if (http.readyState == 4) {
-                        reject(http.responseText)
-                    }
+                if (http.readyState === 4 && http.status === 200) {
+                    resolve(http.responseText)
+                } else if (http.readyState === 4) {
+                    reject(http.responseText)
+                }
             }
             http.send(sendstring)
         })
@@ -233,7 +239,9 @@ exports.init = (debug, debugHost) => {
             let address = account.address
             let encryptedKey = this.web3.eth.accounts.encrypt(account.privateKey, password + salt);
 
-            this.get_registration_token(address).then((token) => {
+
+            this.get_registration_token(address)
+            .then((token) => {
                 let signature = account.sign(token)
                 var http = new_HTTP()
 
@@ -248,17 +256,40 @@ exports.init = (debug, debugHost) => {
                     sendstring += "&registrationCode=" + orgToken
 
                 http.open("POST", this.host + "/submit-registration", true)
-                http.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+                http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
 
                 http.onreadystatechange = () => {
-                    if (http.readyState == 4 && http.status == 204) {
+                    if (http.readyState === 4 && http.status === 204) {
                         resolve()
-                    } else if (http.readyState == 4) {
+                    } else if (http.readyState === 4) {
                         reject(http.responseText)
                     }
                 }
                 http.send(sendstring)
             })
+            .catch(err => reject(err))
+        })
+    }
+
+
+    // Best for backend use only, while authenticated as organization admin
+    this.permission_new_user = function(newUserEmail) {
+        return new Promise((resolve, reject) => {
+            let sendstring = "email=" + newUserEmail.toLowerCase()
+            sendstring += "&noEmail=true" // Causes API to respond with authToken rather than emailing user
+            sendstring += "&authToken=" + this.authToken // org admin authToken for permissioning new user registration
+            
+            const http = new_HTTP()
+            http.open("POST", this.host + "/submit-org-member", true)
+            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            http.onreadystatechange = () => {
+                if (http.readyState == 4 && http.status == 200) {
+                    resolve(http.responseText)
+                } else if (http.readyState == 4) {
+                    reject(http.responseText)
+                }
+            }
+            http.send(sendstring)
         })
     }
 
@@ -287,7 +318,7 @@ exports.init = (debug, debugHost) => {
                 http.open("POST", this.host + "/submit-login", true)
                 http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 http.onreadystatechange = () => {
-                    if (http.readyState === 4 && http.status == 200) {
+                    if (http.readyState === 4 && http.status === 200) {
                         let response = JSON.parse(http.responseText)
                         this.salt = response.salt
                         this.encryptedKey = response.encryptedKey
@@ -305,16 +336,16 @@ exports.init = (debug, debugHost) => {
                         }
                         
                         let signature = account.sign(this.authToken)
-
                         let sendstring = "address=" + account.address
                         sendstring += "&signature=" + JSON.stringify(signature)
                         sendstring += "&authToken=" + this.authToken
+                        sendstring += "&returnUserInfo=" + "true"
 
                         let http2 = new_HTTP()
                         http2.open("POST", this.host + "/prove-address", true)
                         http2.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                         http2.onreadystatechange = () => {
-                            if (http2.readyState == 4 && http2.status == 204) {
+                            if (http2.readyState === 4 && (http2.status === 204 || http2.status === 200)) {
                                 if (IN_BROWSER) {
                                     window.localStorage.authToken = this.authToken
                                     window.localStorage.email = email
@@ -322,8 +353,22 @@ exports.init = (debug, debugHost) => {
                                     window.localStorage.encryptedKey = this.encryptedKey
                                 }
                                 this.email = email
-                                resolve(this.authToken)
-                            } else if (http2.readyState == 4) {
+
+                                if (http2.status === 204) {
+                                    resolve(this.authToken)
+                                    return
+                                }
+
+                                let userInfo = JSON.parse(http2.responseText)
+                                if (userInfo.publicKey) {
+                                    resolve(this.authToken)
+                                    return
+                                }
+
+                                this.generate_RSA_keypair(password)
+                                .catch(err => console.error(err))
+                                .finally(() => resolve(this.authToken))
+                            } else if (http2.readyState === 4) {
                                 console.error("Error on login verification")
                                 reject(http2.responseText)
                             }
@@ -347,6 +392,9 @@ exports.init = (debug, debugHost) => {
             let sendstring = `authToken=${this.authToken}`
 
             if (IN_BROWSER) {
+                if (!this.authToken) {
+                    sendstring = `authToken=${window.localStorage.authToken}`
+                }
                 window.localStorage.authToken = ""
                 window.localStorage.email = ""
                 window.localStorage.salt = ""
@@ -363,9 +411,9 @@ exports.init = (debug, debugHost) => {
             http.open("POST", this.host + "/logout-API", true);
             http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             http.onreadystatechange = () => {
-                if (http.readyState == 4 && http.status == 204) {
+                if (http.readyState === 4 && http.status === 204) {
                     resolve() 
-                } else if (http.readyState == 4) {
+                } else if (http.readyState === 4) {
                     reject(http.responseText)
                 }
             };
@@ -386,18 +434,94 @@ exports.init = (debug, debugHost) => {
             return account.sign(string)
         } catch(err) {
             if (!this.email) {
-                throw("User not yet authenticated.");
+                throw new Error("User not yet authenticated.");
             } else {
                 throw(err)
             }
-            return;
         }
+    }
+
+    this.get_public_key = function(email) {
+        return new Promise((resolve, reject) => {
+            let accessURL = this.host + "/public-key-for-user?email=" + email
+            accessURL += "&authToken=" + this.authToken
+
+            var http = new_HTTP();
+            http.open("GET", accessURL, true);
+            http.setRequestHeader('Accept', 'application/json, text/javascript');
+            http.onreadystatechange = function() {
+                if (http.readyState === 4 && http.status === 200) {
+                    resolve(http.responseText)
+                } else if (http.readyState === 4) {
+                    reject(http.responseText)
+                }
+            };
+
+            http.send()
+        })
+
+    }
+
+    this.decrypt_RSA_private_key = function(encryptedKey, rsaIv, password) {
+        if (!password) {
+            throw new Error("Password is required to decrypt RSA key")
+        }
+        const decryptKey = this.generate_key_from_password(password)  
+        const iv = this.string_to_iv(rsaIv)
+
+        return this.decrypt_string(encryptedKey, decryptKey, iv, 'hex')
+    }
+
+    this.generate_RSA_keypair = function(password) {
+        return new Promise((resolve, reject) => {
+            if (!password) {
+                reject("Password is required to generate RSA keypair")
+                return;
+            }
+
+            const rsaKey = NodeRSA({b: 2048})
+            const pubKey = rsaKey.exportKey('public')
+            const privKey = rsaKey.exportKey('private')
+            const encrypted = this.encrypt_string_with_password(privKey, password, 'hex')
+            
+            const iv = this.iv_to_string(encrypted.iv)
+            const encryptedPrivateKey = encrypted.ciphertext
+
+            var form = new_Form()
+            form.append('publicKey', pubKey)
+            form.append('privateKey', encryptedPrivateKey)
+            form.append('rsaIv', iv)
+            form.append('authToken', this.authToken)
+
+            const url =  this.host + "/set-rsa-keypair"
+            if (IN_BROWSER) {
+                var xhr = new_HTTP()
+                xhr.open("POST", url, true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 204) {
+                        resolve({pubKey, privKey})
+                    } else if (xhr.readyState === 4) {
+                        console.error("Error on upload")
+                        reject(xhr.responseText)
+                    }
+                };
+                xhr.send(form)
+            } else {
+                form.submit(url, function(err, res) {
+                    if (err) {
+                        reject(err)
+                        return
+                    }
+                    resolve({pubKey, privKey})
+                })
+            }
+        })
     }
 
     this.generate_key_from_password = function(password) {
         const salt = this.salt
         if (!salt) {
-            throw("User must be authenticated to generate key")
+            throw new Error("User must be authenticated to generate key")
         }
 
         // cannot be SHA256, or Immuto backend could decrypt user data on login with current auth scheme
@@ -406,11 +530,32 @@ exports.init = (debug, debugHost) => {
         return hash.digest().slice(0, 32) // key for aes-256 must be 32 bytes
     }
 
-    this.encrypt_string_with_key = function(plaintext, key) {
+    this.iv_to_string = function(iv) {
+        let str = ""
+        for (let i = 0; i < iv.length; i ++) {
+            str += iv[i] + ","
+        }
+        return str
+    }
+
+    this.string_to_iv = function(str) {
+        let ivStr = str.split(',')
+
+        let iv = new Uint8Array(16)
+        for (let i = 0; i < ivStr.length; i++) {
+            iv[i] = ivStr[i]
+        }
+
+        return iv
+    }
+
+    this.encrypt_string_with_key = function(plaintext, key, encoding) {
+        encoding = encoding || 'binary'
+
         const iv = crypto.randomBytes(16)
         const cipher = crypto.createCipheriv(SYMMETRIC_SCHEME, key, iv)
-        let ciphertext = cipher.update(plaintext, 'binary', 'binary');
-        ciphertext += cipher.final('binary');
+        let ciphertext = cipher.update(plaintext, 'binary', encoding);
+        ciphertext += cipher.final(encoding);
 
         return {
             ciphertext: ciphertext,
@@ -419,22 +564,312 @@ exports.init = (debug, debugHost) => {
         }
     }
 
-    this.encrypt_string_with_password = function(plaintext, password) {
-        if (!password) throw("No password provided");
+    this.encrypt_string_with_password = function(plaintext, password, encoding) {
+        if (!password) throw new Error("No password provided");
 
-        key = this.generate_key_from_password(password)
-        return this.encrypt_string_with_key(plaintext, key)
+        let key = this.generate_key_from_password(password)
+        return this.encrypt_string_with_key(plaintext, key, encoding)
     }
 
-    this.encrypt_string = function(plaintext) {
+    this.encrypt_string = function(plaintext, encoding) {
         const key = crypto.randomBytes(32)
-        return this.encrypt_string_with_key(plaintext, key)
+        return this.encrypt_string_with_key(plaintext, key, encoding)
     }
 
-    this.decrypt_string = function(ciphertext, key, iv) {
+    this.decrypt_string = function(ciphertext, key, iv, encoding) {
+        encoding = encoding || 'binary'
         let decipher = crypto.createDecipheriv(SYMMETRIC_SCHEME, key, iv)
-        let decrypted = decipher.update(ciphertext, 'binary', 'binary');
+        let decrypted = decipher.update(ciphertext, encoding, 'binary');
         return decrypted + decipher.final('binary');
+    }
+
+    this.str2ab = function(str) {
+      var buf = new ArrayBuffer(str.length); // 2 bytes for each char
+      var bufView = new Uint8Array(buf);
+      for (var i=0, strLen=str.length; i < strLen; i++) {
+        bufView[i] = str.charCodeAt(i);
+      }
+      return bufView;
+    }
+
+    this.get_file_content = function(file) {
+        return new Promise((resolve, reject) => {
+            var reader = new FileReader();
+            reader.onload = function() {
+                resolve(this.result)
+            }
+            reader.onerror = function(e) {
+                reject(e)
+            }
+            reader.readAsBinaryString(file);
+        })
+    }
+
+    // iv for aes256, optional for RSA
+    this.store_user_key_for_record = function(userEmail, recordID, encryptedKey, iv) {
+        return new Promise((resolve, reject) => {
+            const url =  this.host + "/set-key-for-record"
+            let form = new_Form()
+            form.append('userForKey', userEmail)
+            form.append('recordID', recordID)
+            form.append('encryptedKey', encodeURI(encryptedKey))
+            if (iv) form.append('iv', this.iv_to_string(iv))
+            form.append('authToken', this.authToken)
+
+            if (IN_BROWSER) {
+                let xhr = new_HTTP()
+                xhr.open("POST", url, true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 204) {
+                        resolve()
+                    } else if (xhr.readyState === 4) {
+                        reject(xhr.responseText)
+                    }
+                };
+                xhr.send(form);
+            } else {
+                form.submit(url, function(err, res) {
+                    if (err) {
+                        reject(err)
+                        return
+                    }
+                    resolve()
+                })
+            }
+        })
+    }
+
+    this.upload_file_for_record = function(file, fileContent, recordID, password, projectID, handleProgress) {
+        return new Promise((resolve, reject) => {
+            let cipherInfo = this.encrypt_string(fileContent)
+            
+            let encryptedKey = this.encrypt_string_with_password(
+            JSON.stringify({
+                key: cipherInfo.key,
+                iv: this.iv_to_string(cipherInfo.iv)
+            }), password, 'hex')
+
+            let encryptedFile = new Blob([this.str2ab(cipherInfo.ciphertext)], {type: file.type});
+            encryptedFile.lastModifiedDate = new Date();
+            encryptedFile.name = file.name;
+
+            let sendstring  = 'fileSize=' + encryptedFile.size
+            sendstring += '&fileName=' + file.name
+            sendstring += '&fileType=' + file.type
+            sendstring += '&recordID=' + recordID
+            if (projectID) sendstring += '&projectID=' + projectID
+            sendstring += '&authToken=' + this.authToken
+
+            var xhr = new_HTTP()
+            let url =  this.host + "/prepare-file-upload"
+            xhr.open("POST", url, true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    let presignedPostData = JSON.parse(xhr.responseText)
+                    
+                    const formData = new FormData();
+                    Object.keys(presignedPostData.fields).forEach(key => {
+                      formData.append(key, presignedPostData.fields[key]);
+                    });
+
+                    // Actual file has to be appended last
+                    formData.append("file", encryptedFile);
+
+                    const http = new_HTTP();
+
+                    http.open("POST", presignedPostData.url, true);
+                    
+                    http.onreadystatechange = () => {
+                        if (http.readyState === 4 && http.status === 204) {
+                            this.store_user_key_for_record(this.email, recordID, encryptedKey.ciphertext, encryptedKey.iv)
+                            .then(() => resolve("done"))
+                            .catch(err => reject(err))
+                        } else if (http.readyState === 4){
+                            reject(http.responseText)
+                        }
+                    };
+
+                    http.upload.onprogress = function(e) {
+                        let percentComplete = Math.ceil((e.loaded / e.total) * 100);
+                        if (handleProgress) {
+                            handleProgress(percentComplete)
+                        }
+                    };
+
+                    http.send(formData);
+                } else if (xhr.readyState === 4) {
+                    console.error("Error on upload")
+                    reject(xhr.responseText)
+                }
+            };
+            xhr.send(sendstring);
+        })
+    }
+
+    this.upload_file = function(file, password, projectID, handleProgress) {
+        return new Promise((resolve, reject) => {
+            this.get_file_content(file)
+            .then((content) => {
+                this.create_data_management(content, file.recordName || file.name, "editable", password, "")
+                .then((recordID) => {
+                    this.upload_file_for_record(file, content, recordID, password, projectID, handleProgress)
+                    .then(done => resolve(recordID))
+                    .catch(err => reject(err))
+                })
+                .catch(err => reject(err))
+            })
+            .catch(err => reject(err))
+        })
+    }
+
+    this.upload_file_data = function(fileContent, fileName, password, projectID, handleProgress) {
+        return new Promise((resolve, reject) => {
+            let file = {name: fileName, type: "text/plain"}
+
+            this.create_data_management(fileContent, fileName, "editable", password, "")
+            .then((recordID) => {
+                this.upload_file_for_record(file, fileContent, recordID, password, projectID, handleProgress)
+                .then(done => resolve(recordID))
+                .catch(err => reject(err))
+            })
+            .catch(err => reject(err))
+        })
+    }
+
+    this.search_records_by_hash = function(hash) {
+        return new Promise((resolve, reject) => {
+            let accessURL = this.host + "/records-for-hash?hash=" + hash
+            accessURL += "&authToken=" + this.authToken
+
+            var http = new_HTTP();
+            http.open("GET", accessURL, true);
+            http.setRequestHeader('Accept', 'application/json, text/javascript');
+            http.onreadystatechange = function() {
+                if (http.readyState === 4 && http.status === 200) {
+                    resolve({records: JSON.parse(http.responseText), hash})
+                } else if (http.readyState === 4) {
+                    reject(http.responseText)
+                }
+            };
+
+            http.send()
+        })
+    }
+
+    this.search_records_by_content = function(fileContent) {
+        return this.search_records_by_hash(this.web3.eth.accounts.hashMessage(fileContent))
+    }
+
+    this.search_records_by_query = function(query) {
+        return new Promise((resolve, reject) => {
+            let accessURL = this.host + '/search-user-data-contracts'
+            accessURL += "?authToken=" + this.authToken
+
+            var http = new_HTTP();
+            http.open("POST", accessURL, true);
+            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            http.onreadystatechange = function() {
+                if (http.readyState === 4 && http.status === 200) {
+                    resolve(JSON.parse(http.responseText))
+                } else if (http.readyState === 4) {
+                    reject(http.responseText)
+                }
+            };
+
+            http.send(`searchQuery=${query}`)
+        })
+    }
+
+    this.get_info_for_recordID = function(recordID) {
+        return new Promise((resolve, reject) => {
+            let accessURL = this.host + "/record-for-user?recordID=" + recordID 
+            accessURL += "&authToken=" + this.authToken
+
+            var http = new_HTTP();
+            http.open("GET", accessURL, true);
+            http.setRequestHeader('Accept', 'application/json, text/javascript');
+            http.onreadystatechange = function() {
+                if (http.readyState === 4 && http.status === 200) {
+                    resolve(JSON.parse(http.responseText))
+                } else if (http.readyState === 4) {
+                    reject(http.responseText)
+                }
+            };
+
+            http.send()
+        })
+    }
+
+    this.build_full_URL = function(remoteURL) {
+        const S3_BUCKET = this.host === "https://www.immuto.io" ? "immuto-prod" : "immuto-sandbox"
+
+        if (remoteURL.includes(S3_BUCKET)) return remoteURL
+
+        return "https://" + S3_BUCKET +  ".s3.amazonaws.com/readable/" + remoteURL
+    }
+
+    this.download_file_for_record = function(recordInfo, password, version, asPlaintext) {
+        return new Promise((resolve, reject) => {
+            if (!recordInfo.files) {
+                reject("No files exist for record")
+            }
+            if (version < 0) {
+                reject("Version number must be non-negative integer")
+            }
+            if (version >= recordInfo.files.length) {
+                reject(`Invalid version number ${version} for record with ${recordInfo.files.length} versions`)
+            }
+            if (version !== 0)
+                version = version || recordInfo.files.length - 1 // default to recent
+            const fileInfo = recordInfo.files[version]
+
+        
+            let decryptKey = this.generate_key_from_password(password)  
+            let fileURL = fileInfo.remoteURL
+
+            let encryptedKeyInfo = recordInfo[this.email.replace(/\./g, " ")]
+            let encryptedKey = encryptedKeyInfo.encryptedKey
+            let iv = this.string_to_iv(encryptedKeyInfo.iv)
+
+            let fileDecryptInfo = JSON.parse(this.decrypt_string(encryptedKey, decryptKey, iv, 'hex'))          
+            let fileDKey = fileDecryptInfo.key.data
+            let fileDiv = this.string_to_iv(fileDecryptInfo.iv)
+
+            let http = new_HTTP();
+            http.open("GET", this.build_full_URL(fileURL), true);
+            http.responseType = "arraybuffer"
+            http.onreadystatechange = () => {
+                if (http.readyState === 4 && http.status === 200) {
+                    let encryptedData = new Uint8Array(http.response)
+                    let plaintext = this.decrypt_string(encryptedData, fileDKey, fileDiv, 'hex') // this can be used for auto-verification (before splitting)
+
+                    let file = {
+                        type: fileInfo.type,
+                        name: fileInfo.name,
+                        data: asPlaintext ? plaintext : this.str2ab(plaintext)
+                    }
+
+                    resolve(file)
+                } else if (http.readyState === 4) {
+                    reject(http.responseText)
+                }
+            };
+            http.send()
+        })
+    }
+
+    this.download_file_for_recordID = function(recordID, password, version, asPlaintext) {
+        return new Promise((resolve, reject) => {
+            if (!password) { reject("NO PASSWORD PROVIDED"); return; }
+            this.get_info_for_recordID(recordID)
+            .then(recordInfo => {
+                this.download_file_for_record(recordInfo, password, version, asPlaintext)
+                .then(file => resolve(file))
+                .catch(err => reject(err))
+            })
+            .catch(err => reject(err))
+        })
     }
 
 
@@ -466,9 +901,9 @@ exports.init = (debug, debugHost) => {
             xhr.open("POST", this.host + "/submit-new-data-upload", true);
             xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             xhr.onreadystatechange = () => {
-                if (xhr.readyState == 4 && xhr.status == 200) {
+                if (xhr.readyState === 4 && xhr.status === 200) {
                     resolve(xhr.responseText) 
-                } else if (xhr.readyState == 4) {
+                } else if (xhr.readyState === 4) {
                     reject(xhr.responseText)
                 }
             };
@@ -510,9 +945,9 @@ exports.init = (debug, debugHost) => {
                 xhr.open("POST", this.host + "/update-data-storage", true);
                 xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 xhr.onreadystatechange = () => {
-                    if (xhr.readyState == 4 && xhr.status == 204) {
+                    if (xhr.readyState === 4 && xhr.status === 204) {
                         resolve()
-                    } else if (xhr.readyState == 4) {
+                    } else if (xhr.readyState === 4) {
                         reject(xhr.responseText)
                     }
                 };
@@ -520,6 +955,7 @@ exports.init = (debug, debugHost) => {
                 sendstring += 'contractAddr=' + recordID // from submit-new-data-upload
                 sendstring += '&signature=' + JSON.stringify(signature)
                 sendstring += '&authToken=' + this.authToken
+                sendstring += '&plainHash=' + this.web3.eth.accounts.hashMessage(newContent) 
                 xhr.send(sendstring);
             }).catch((err) => {
                 reject(err)
@@ -532,7 +968,6 @@ exports.init = (debug, debugHost) => {
             if (!this.utils.is_valid_recordID(recordID)) {
                 reject("Invalid recordID"); return; 
             }
-
             if (this.connected) { 
                 let contract = undefined
                 if (type === "basic") {
@@ -540,8 +975,8 @@ exports.init = (debug, debugHost) => {
                 } else if (type === "editable") {
                     contract = new this.web3.eth.Contract(EDITABLE_DATA_STORAGE_ABI, recordID);
                 } else {
-                    reject("Invalid contract type: " + type)
-                    return
+                    console.warn(`Unexpected type: ${type}... defaulting to editable`)
+                    contract = new this.web3.eth.Contract(EDITABLE_DATA_STORAGE_ABI, recordID);
                 }
                 
                 contract.getPastEvents('Updated', {
@@ -596,7 +1031,7 @@ exports.init = (debug, debugHost) => {
                                 priorHash = history[i - 1].hash
 
                             let hash = this.web3.eth.accounts.hashMessage(verificationContent + priorHash)
-                            if (hash.toLowerCase() == history[i].hash.toLowerCase()) {
+                            if (hash.toLowerCase() === history[i].hash.toLowerCase()) {
                                 resolve(history[i])
                                 return
                             }
@@ -641,9 +1076,9 @@ exports.init = (debug, debugHost) => {
             xhr.open("POST", this.host + "/submit-new-agreement-upload", true);
             xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             xhr.onreadystatechange = () => {
-                if (xhr.readyState == 4 && xhr.status == 200) {
+                if (xhr.readyState === 4 && xhr.status === 200) {
                     resolve(xhr.responseText)
-                } else if (xhr.readyState == 4) {
+                } else if (xhr.readyState === 4) {
                     reject(xhr.responseText)
                 }
             };
@@ -651,7 +1086,7 @@ exports.init = (debug, debugHost) => {
             sendstring += '&filedesc=' + desc
             sendstring += '&signature=' + JSON.stringify(signature)
             sendstring += '&type=' + type
-            if (type == 'multisig')
+            if (type === 'multisig')
                     sendstring += '&signers=' + JSON.stringify(signers)
             sendstring += '&fileHash=' + hashedData
             sendstring += '&authToken=' + this.authToken
@@ -684,7 +1119,7 @@ exports.init = (debug, debugHost) => {
             http.open("POST", this.host + "/get-contract-info", true)
             http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             http.onreadystatechange = () => {
-                if (http.readyState == 4 && http.status == 200) {
+                if (http.readyState === 4 && http.status === 200) {
                     let response = JSON.parse(http.responseText)
 
                     let currentHash =  response.hashes.pop()
@@ -697,9 +1132,9 @@ exports.init = (debug, debugHost) => {
                     xhr.open("POST", this.host + "/sign-agreement", true);
                     xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                     xhr.onreadystatechange = () => {
-                        if (xhr.readyState == 4 && xhr.status == 204) {
+                        if (xhr.readyState === 4 && xhr.status === 204) {
                             resolve()
-                        } else if (xhr.readyState == 4) {
+                        } else if (xhr.readyState === 4) {
                             reject(xhr.responseText)
                         }
                     };
@@ -707,8 +1142,8 @@ exports.init = (debug, debugHost) => {
                     sendstring += 'contractAddr=' + recordID
                     sendstring += '&signature=' + JSON.stringify(signature)
                     sendstring += '&authToken=' + this.authToken
-                    xhr.send(fd);
-                } else if (http.readyState == 4) {
+                    xhr.send(sendstring);
+                } else if (http.readyState === 4) {
                     reject(http.responseText)
                 }
             }
@@ -746,9 +1181,9 @@ exports.init = (debug, debugHost) => {
             xhr.open("POST", this.host + "/update-agreement", true);
             xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             xhr.onreadystatechange = () => {
-                if (xhr.readyState == 4 && xhr.status == 204) {
+                if (xhr.readyState === 4 && xhr.status === 204) {
                     resolve()
-                } else if (xhr.readyState == 4) {
+                } else if (xhr.readyState === 4) {
                     reject(xhr.responseText)
                 }
             };
@@ -777,7 +1212,7 @@ exports.init = (debug, debugHost) => {
                 http.open("POST", this.host + "/get-contract-info", true)
                 http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
                 http.onreadystatechange = () => {
-                    if (http.readyState == 4 && http.status == 200) {
+                    if (http.readyState === 4 && http.status === 200) {
                         let response = JSON.parse(http.responseText)
                         let hashes =  response.hashes
                         let hash = this.web3.utils.sha3(verificationContent)
@@ -785,7 +1220,7 @@ exports.init = (debug, debugHost) => {
                         if (emails) {
                             this.get_digital_agreement_history(recordID, type).then((history) => {
                                 this.utils.emails_to_addresses(JSON.stringify(emails)).then((addresses) => {
-                                    validSignatures = []
+                                    let validSignatures = []
                                     addresses.push(response.userAddr)
                                     for (let i = 0; i < addresses.length; i++) {
                                         addresses[i] = addresses[i].toLowerCase()
@@ -799,7 +1234,7 @@ exports.init = (debug, debugHost) => {
                                         //causes extra if original hash correct, rest not
                                         for (let j = currentVersion; j < hashes.length; j++) {
                                             if (j > i) break;
-                                            if (hashes[j].toLowerCase() == hash.toLowerCase()) {
+                                            if (hashes[j].toLowerCase() === hash.toLowerCase()) {
                                                 let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
                                                 if (addressLookup.has(address.toLowerCase())) {
                                                     validSignatures.push({
@@ -838,7 +1273,7 @@ exports.init = (debug, debugHost) => {
 
                                 let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
                                 this.utils.addresses_to_emails([{signer: address}]).then((emails) => {
-                                    if (address.toLowerCase() == response.userAddr.toLowerCase()) {
+                                    if (address.toLowerCase() === response.userAddr.toLowerCase()) {
                                         resolve([{
                                             version: 0,
                                             timestamp: history[0].timestamp,
@@ -858,7 +1293,7 @@ exports.init = (debug, debugHost) => {
                         }
 
                         
-                    } else if (http.readyState == 4) {
+                    } else if (http.readyState === 4) {
                         reject(http.responseText)
                     }
                 }
@@ -928,9 +1363,9 @@ exports.init = (debug, debugHost) => {
             }
         })
     }
-
     return this
 }
+
 
 const BASIC_DATA_STORAGE_ABI = [
         {
@@ -979,13 +1414,6 @@ const BASIC_DATA_STORAGE_ABI = [
                 "type": "event"
         }
 ]
-
-const EDITABLE_DATA_STORAGE_BYTECODE = {
-        "linkReferences": {},
-        "object": "608060405234801561001057600080fd5b50604051608080610273833981016040818152825160208085015183860151606096870151600080885284880180885286905260ff841687890152978701829052608087018190529451939691959094937f330f922dd712baf413b20ba0142bfffe7148baa67e9ab6c157c322435c7db6f7934293899360019360a08083019493601f198301938390039091019190865af11580156100b3573d6000803e3d6000fd5b505060408051601f198101519481526020810193909352600160a060020a03909316828401525090519081900360600190a15050505061017b806100f86000396000f3006080604052600436106100405763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416631285d9958114610045575b600080fd5b34801561005157600080fd5b5061006960043560ff6024351660443560643561006b565b005b7313f4cbc19d59fcef7f0543603adaab7bf11bce5c331461008b57600080fd5b604080516000808252602080830180855288905260ff871683850152606083018690526080830185905292517f330f922dd712baf413b20ba0142bfffe7148baa67e9ab6c157c322435c7db6f7934293899360019360a08084019493601f19830193908390039091019190865af115801561010a573d6000803e3d6000fd5b505060408051601f19810151948152602081019390935273ffffffffffffffffffffffffffffffffffffffff909316828401525090519081900360600190a1505050505600a165627a7a7230582045aa1343875979161779495c3731c7de160a6996b484fd4580e48ffa8e07fed70029",
-        "opcodes": "PUSH1 0x80 PUSH1 0x40 MSTORE CALLVALUE DUP1 ISZERO PUSH2 0x10 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH1 0x40 MLOAD PUSH1 0x80 DUP1 PUSH2 0x273 DUP4 CODECOPY DUP2 ADD PUSH1 0x40 DUP2 DUP2 MSTORE DUP3 MLOAD PUSH1 0x20 DUP1 DUP6 ADD MLOAD DUP4 DUP7 ADD MLOAD PUSH1 0x60 SWAP7 DUP8 ADD MLOAD PUSH1 0x0 DUP1 DUP9 MSTORE DUP5 DUP9 ADD DUP1 DUP9 MSTORE DUP7 SWAP1 MSTORE PUSH1 0xFF DUP5 AND DUP8 DUP10 ADD MSTORE SWAP8 DUP8 ADD DUP3 SWAP1 MSTORE PUSH1 0x80 DUP8 ADD DUP2 SWAP1 MSTORE SWAP5 MLOAD SWAP4 SWAP7 SWAP2 SWAP6 SWAP1 SWAP5 SWAP4 PUSH32 0x330F922DD712BAF413B20BA0142BFFFE7148BAA67E9AB6C157C322435C7DB6F7 SWAP4 TIMESTAMP SWAP4 DUP10 SWAP4 PUSH1 0x1 SWAP4 PUSH1 0xA0 DUP1 DUP4 ADD SWAP5 SWAP4 PUSH1 0x1F NOT DUP4 ADD SWAP4 DUP4 SWAP1 SUB SWAP1 SWAP2 ADD SWAP2 SWAP1 DUP7 GAS CALL ISZERO DUP1 ISZERO PUSH2 0xB3 JUMPI RETURNDATASIZE PUSH1 0x0 DUP1 RETURNDATACOPY RETURNDATASIZE PUSH1 0x0 REVERT JUMPDEST POP POP PUSH1 0x40 DUP1 MLOAD PUSH1 0x1F NOT DUP2 ADD MLOAD SWAP5 DUP2 MSTORE PUSH1 0x20 DUP2 ADD SWAP4 SWAP1 SWAP4 MSTORE PUSH1 0x1 PUSH1 0xA0 PUSH1 0x2 EXP SUB SWAP1 SWAP4 AND DUP3 DUP5 ADD MSTORE POP SWAP1 MLOAD SWAP1 DUP2 SWAP1 SUB PUSH1 0x60 ADD SWAP1 LOG1 POP POP POP POP PUSH2 0x17B DUP1 PUSH2 0xF8 PUSH1 0x0 CODECOPY PUSH1 0x0 RETURN STOP PUSH1 0x80 PUSH1 0x40 MSTORE PUSH1 0x4 CALLDATASIZE LT PUSH2 0x40 JUMPI PUSH4 0xFFFFFFFF PUSH29 0x100000000000000000000000000000000000000000000000000000000 PUSH1 0x0 CALLDATALOAD DIV AND PUSH4 0x1285D995 DUP2 EQ PUSH2 0x45 JUMPI JUMPDEST PUSH1 0x0 DUP1 REVERT JUMPDEST CALLVALUE DUP1 ISZERO PUSH2 0x51 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH2 0x69 PUSH1 0x4 CALLDATALOAD PUSH1 0xFF PUSH1 0x24 CALLDATALOAD AND PUSH1 0x44 CALLDATALOAD PUSH1 0x64 CALLDATALOAD PUSH2 0x6B JUMP JUMPDEST STOP JUMPDEST PUSH20 0x13F4CBC19D59FCEF7F0543603ADAAB7BF11BCE5C CALLER EQ PUSH2 0x8B JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST PUSH1 0x40 DUP1 MLOAD PUSH1 0x0 DUP1 DUP3 MSTORE PUSH1 0x20 DUP1 DUP4 ADD DUP1 DUP6 MSTORE DUP9 SWAP1 MSTORE PUSH1 0xFF DUP8 AND DUP4 DUP6 ADD MSTORE PUSH1 0x60 DUP4 ADD DUP7 SWAP1 MSTORE PUSH1 0x80 DUP4 ADD DUP6 SWAP1 MSTORE SWAP3 MLOAD PUSH32 0x330F922DD712BAF413B20BA0142BFFFE7148BAA67E9AB6C157C322435C7DB6F7 SWAP4 TIMESTAMP SWAP4 DUP10 SWAP4 PUSH1 0x1 SWAP4 PUSH1 0xA0 DUP1 DUP5 ADD SWAP5 SWAP4 PUSH1 0x1F NOT DUP4 ADD SWAP4 SWAP1 DUP4 SWAP1 SUB SWAP1 SWAP2 ADD SWAP2 SWAP1 DUP7 GAS CALL ISZERO DUP1 ISZERO PUSH2 0x10A JUMPI RETURNDATASIZE PUSH1 0x0 DUP1 RETURNDATACOPY RETURNDATASIZE PUSH1 0x0 REVERT JUMPDEST POP POP PUSH1 0x40 DUP1 MLOAD PUSH1 0x1F NOT DUP2 ADD MLOAD SWAP5 DUP2 MSTORE PUSH1 0x20 DUP2 ADD SWAP4 SWAP1 SWAP4 MSTORE PUSH20 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF SWAP1 SWAP4 AND DUP3 DUP5 ADD MSTORE POP SWAP1 MLOAD SWAP1 DUP2 SWAP1 SUB PUSH1 0x60 ADD SWAP1 LOG1 POP POP POP POP JUMP STOP LOG1 PUSH6 0x627A7A723058 KECCAK256 GASLIMIT 0xaa SGT NUMBER DUP8 MSIZE PUSH26 0x161779495C3731C7DE160A6996B484FD4580E48FFA8E07FED700 0x29 ",
-        "sourceMap": "194:505:0:-;;;334:133;8:9:-1;5:2;;;30:1;27;20:12;5:2;334:133:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;434:24;;;;;;;;;;;;;;;;;;;;;;;;;;334:133;434:24;;;;;;;334:133;;;;;;;415:44;;423:3;;334:133;;434:24;;;;;;;334:133;-1:-1:-1;;434:24:0;;;;;;;;;;;;;;;8:9:-1;5:2;;;45:16;42:1;39;24:38;77:16;74:1;67:27;5:2;-1:-1;;434:24:0;;;-1:-1:-1;;434:24:0;;;415:44;;;434:24;415:44;;;;;;-1:-1:-1;;;;;415:44:0;;;;;;;-1:-1:-1;415:44:0;;;;;;;;;;334:133;;;;194:505;;;;;;"
-}
 
 const EDITABLE_DATA_STORAGE_ABI = [
         {
@@ -1061,13 +1489,6 @@ const EDITABLE_DATA_STORAGE_ABI = [
         }
 ]
 
-const SINGLE_SIGN_AGREEMENT_BYTECODE = {
-        "linkReferences": {},
-        "object": "6080604052348015600f57600080fd5b5060405160608060ef8339810180604052810190808051906020019092919080519060200190929190805190602001909291905050507f5158cb43b8032450a74940e19d2657b5bd3892b998fa5b41560dc6b4f2066b6042848484604051808581526020018460ff1660ff1681526020018360001916600019168152602001826000191660001916815260200194505050505060405180910390a150505060358060ba6000396000f3006080604052600080fd00a165627a7a72305820d4c606502fe3afd292a618dcc96edaa1761cbacf44a1ddae8ade0477c89d79c50029",
-        "opcodes": "PUSH1 0x80 PUSH1 0x40 MSTORE CALLVALUE DUP1 ISZERO PUSH1 0xF JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH1 0x40 MLOAD PUSH1 0x60 DUP1 PUSH1 0xEF DUP4 CODECOPY DUP2 ADD DUP1 PUSH1 0x40 MSTORE DUP2 ADD SWAP1 DUP1 DUP1 MLOAD SWAP1 PUSH1 0x20 ADD SWAP1 SWAP3 SWAP2 SWAP1 DUP1 MLOAD SWAP1 PUSH1 0x20 ADD SWAP1 SWAP3 SWAP2 SWAP1 DUP1 MLOAD SWAP1 PUSH1 0x20 ADD SWAP1 SWAP3 SWAP2 SWAP1 POP POP POP PUSH32 0x5158CB43B8032450A74940E19D2657B5BD3892B998FA5B41560DC6B4F2066B60 TIMESTAMP DUP5 DUP5 DUP5 PUSH1 0x40 MLOAD DUP1 DUP6 DUP2 MSTORE PUSH1 0x20 ADD DUP5 PUSH1 0xFF AND PUSH1 0xFF AND DUP2 MSTORE PUSH1 0x20 ADD DUP4 PUSH1 0x0 NOT AND PUSH1 0x0 NOT AND DUP2 MSTORE PUSH1 0x20 ADD DUP3 PUSH1 0x0 NOT AND PUSH1 0x0 NOT AND DUP2 MSTORE PUSH1 0x20 ADD SWAP5 POP POP POP POP POP PUSH1 0x40 MLOAD DUP1 SWAP2 SUB SWAP1 LOG1 POP POP POP PUSH1 0x35 DUP1 PUSH1 0xBA PUSH1 0x0 CODECOPY PUSH1 0x0 RETURN STOP PUSH1 0x80 PUSH1 0x40 MSTORE PUSH1 0x0 DUP1 REVERT STOP LOG1 PUSH6 0x627A7A723058 KECCAK256 0xd4 0xc6 MOD POP 0x2f 0xe3 0xaf 0xd2 SWAP3 0xa6 XOR 0xdc 0xc9 PUSH15 0xDAA1761CBACF44A1DDAE8ADE0477C8 SWAP14 PUSH26 0xC500290000000000000000000000000000000000000000000000 ",
-        "sourceMap": "26:225:0:-;;;156:93;8:9:-1;5:2;;;30:1;27;20:12;5:2;156:93:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;222:20;229:3;234:1;237;240;222:20;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;156:93;;;26:225;;;;;;"
-}
-
 const SINGLE_SIGN_AGREEMENT_ABI = [
         {
                 "inputs": [
@@ -1116,13 +1537,6 @@ const SINGLE_SIGN_AGREEMENT_ABI = [
                 "type": "event"
         }
 ]
-
-const MULTISIG_AGREEMENT_BYTECODE = {
-        "linkReferences": {},
-        "object": "608060405234801561001057600080fd5b5060405160608061018783398101604081815282516020808501519483015142855260ff8316918501919091528284018590526060840181905291519093927f5158cb43b8032450a74940e19d2657b5bd3892b998fa5b41560dc6b4f2066b60919081900360800190a150505060fc8061008b6000396000f300608060405260043610603e5763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663b3e376a581146043575b600080fd5b348015604e57600080fd5b50606160ff600435166024356044356063565b005b7313f4cbc19d59fcef7f0543603adaab7bf11bce5c3314608257600080fd5b6040805142815260ff851660208201528082018490526060810183905290517f5158cb43b8032450a74940e19d2657b5bd3892b998fa5b41560dc6b4f2066b609181900360800190a15050505600a165627a7a72305820fb0c8c198569843e74e89503286066c87f50cc0f63033f9778c96616fb5cf5980029",
-        "opcodes": "PUSH1 0x80 PUSH1 0x40 MSTORE CALLVALUE DUP1 ISZERO PUSH2 0x10 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH1 0x40 MLOAD PUSH1 0x60 DUP1 PUSH2 0x187 DUP4 CODECOPY DUP2 ADD PUSH1 0x40 DUP2 DUP2 MSTORE DUP3 MLOAD PUSH1 0x20 DUP1 DUP6 ADD MLOAD SWAP5 DUP4 ADD MLOAD TIMESTAMP DUP6 MSTORE PUSH1 0xFF DUP4 AND SWAP2 DUP6 ADD SWAP2 SWAP1 SWAP2 MSTORE DUP3 DUP5 ADD DUP6 SWAP1 MSTORE PUSH1 0x60 DUP5 ADD DUP2 SWAP1 MSTORE SWAP2 MLOAD SWAP1 SWAP4 SWAP3 PUSH32 0x5158CB43B8032450A74940E19D2657B5BD3892B998FA5B41560DC6B4F2066B60 SWAP2 SWAP1 DUP2 SWAP1 SUB PUSH1 0x80 ADD SWAP1 LOG1 POP POP POP PUSH1 0xFC DUP1 PUSH2 0x8B PUSH1 0x0 CODECOPY PUSH1 0x0 RETURN STOP PUSH1 0x80 PUSH1 0x40 MSTORE PUSH1 0x4 CALLDATASIZE LT PUSH1 0x3E JUMPI PUSH4 0xFFFFFFFF PUSH29 0x100000000000000000000000000000000000000000000000000000000 PUSH1 0x0 CALLDATALOAD DIV AND PUSH4 0xB3E376A5 DUP2 EQ PUSH1 0x43 JUMPI JUMPDEST PUSH1 0x0 DUP1 REVERT JUMPDEST CALLVALUE DUP1 ISZERO PUSH1 0x4E JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH1 0x61 PUSH1 0xFF PUSH1 0x4 CALLDATALOAD AND PUSH1 0x24 CALLDATALOAD PUSH1 0x44 CALLDATALOAD PUSH1 0x63 JUMP JUMPDEST STOP JUMPDEST PUSH20 0x13F4CBC19D59FCEF7F0543603ADAAB7BF11BCE5C CALLER EQ PUSH1 0x82 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST PUSH1 0x40 DUP1 MLOAD TIMESTAMP DUP2 MSTORE PUSH1 0xFF DUP6 AND PUSH1 0x20 DUP3 ADD MSTORE DUP1 DUP3 ADD DUP5 SWAP1 MSTORE PUSH1 0x60 DUP2 ADD DUP4 SWAP1 MSTORE SWAP1 MLOAD PUSH32 0x5158CB43B8032450A74940E19D2657B5BD3892B998FA5B41560DC6B4F2066B60 SWAP2 DUP2 SWAP1 SUB PUSH1 0x80 ADD SWAP1 LOG1 POP POP POP JUMP STOP LOG1 PUSH6 0x627A7A723058 KECCAK256 CREATE2 0xc DUP13 NOT DUP6 PUSH10 0x843E74E89503286066C8 PUSH32 0x50CC0F63033F9778C96616FB5CF5980029000000000000000000000000000000 ",
-        "sourceMap": "28:425:0:-;;;166:95;8:9:-1;5:2;;;30:1;27;20:12;5:2;166:95:0;;;;;;;;;;;;;;;;;;;;;;;;;240:3;233:20;;;;;;;;;;;;;;;;;;166:95;233:20;;;;;;;166:95;;;233:20;;;;;;;;;;166:95;;;28:425;;;;;;"
-}
 
 const MULTISIG_AGREEMENT_ABI = [
         {

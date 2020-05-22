@@ -1,130 +1,52 @@
 let email = window.localStorage.email
 let password = window.localStorage.password
-console.log(email)
-console.log(password)
 
 if (!email) {
-   email = prompt("Enter test email", ""); 
-   window.localStorage.email = email
+   alert("No email set")
 }
 
 if (!password) {
-    password = prompt("Enter test password", "");
-    window.localStorage.password = password
+    alert("No password set")
 }
 
-//let currentSession = prompt("Test current session? Leave blank for new session.")
+const IMMUTO_URL = "http://localhost:8000"
+let im = Immuto.init(true, IMMUTO_URL)
 
-let im = Immuto.init(true, "http://localhost:8000")
+if (email && password) run_tests(email, password)
 
-async function run_tests() {
-    await im.deauthenticate()// ensure user not logged in to start tests
+async function run_tests(email, password) {
+    try {       
+        // await im.deauthenticate() // in case auth cached by browser
+        // await im.authenticate(email, password) 
+        // await test_org_member_registration()
+        await im.deauthenticate() // de-authenticate org-member
+        await im.authenticate(email, password) // re-authenticate org-admin
 
-    try {
-        let testResult = await establish_connection_tests()
-        im.connected = false
-        if (testResult) console.log("Parallel connection attempts successful!");
+        // await data_management_tests()
+        // await digital_agreement_tests()
+        // await test_encryption()
+
+        await test_file_upload()
+
+        console.log("All tests passed!")
     } catch (err) {
-        console.error("Error during parallel connection attempts")
+        console.error("Error during tests:")
         console.error(err)
-    }
-    
-    try {
-        await im.authenticate(email, password)
-    } catch (err) {
-        console.error("Failed to authenticate")
-        console.error(err)
-    }
-    
-    try {
-        testResult = await data_management_tests()
-        if (testResult === true) {
-            console.log("Data management tests successful!")
-        } else {
-            console.error(testResult)
-        }
-    } catch (err) {
-        console.error("Failed data management tests")
-        console.error(err)
-    }
-   
-
-    try {
-        im.connected = false // test auto connection before record verification
-        testResult = await data_management_tests()
-        if (testResult === true) {
-            console.log("Data management (with auto connect) tests successful!");
-        } else {
-            console.error(testResult)
-        }
-    } catch (err) {
-        console.error("Failed data management tests (with auto connect)")
-        console.error(err)
-    }
-    
-
-    try {
-        testResult = await digital_agreement_tests()
-        if (testResult === true) {
-            console.log("Digital agreement tests successful!");
-        } else {
-            console.error(testResult)
-        }
-    } catch (err) {
-        console.error("Failed digital agreement tests")
-        console.error(err)
-    }
-
-    try {
-        im.connected = false // test auto connection before record verification
-        testResult = await digital_agreement_tests()
-        if (testResult === true) {
-            console.log("Digital agreement (with auto connect) tests successful!");
-        } else {
-            console.error(testResult)
-        }
-    } catch (err) {
-        console.error("Failed digital agreement tests (with auto connect)")
-        console.error(err)
-    }
-
-    if (test_encryption()) {
-        console.log("Encryption tests successful!");
-    } else {
-        console.error("Failed encryption tests")
     }
 }
 
-
-// parallel requests should all be successful, including automatic from attempt connection
-function establish_connection_tests() {
-    return new Promise((resolve, reject) => {
-        let successCount = 0
-        im.establish_connection(email).then(() => {
-            successCount ++;
-            if (successCount == 3) {
-                resolve(true)
-            }
-        }).catch((err) => {
-            reject(err)
-        })
-        im.establish_connection(email).then(() => {
-            successCount ++;
-            if (successCount == 3) {
-                resolve(true)
-            }
-        }).catch((err) => {
-            reject(err)
-        })
-        im.establish_connection(email).then(() => {
-            successCount ++;
-            if (successCount == 3) {
-                resolve(true)
-            }
-        }).catch((err) => {
-            reject(err)
-        })
-    })
+async function test_org_member_registration() {
+    const newUserEmail = "test@test.com"
+    const userPassword = "testpassword"
+    
+    try {
+        const registrationToken = await im.permission_new_user(newUserEmail)
+        await im.deauthenticate() // de-authenticate org-admin
+        await im.register_user(newUserEmail, userPassword, registrationToken)
+        await im.authenticate(newUserEmail, userPassword)
+    } catch(err) {
+        throw err
+    }
 }
 
 async function data_management_tests() {
@@ -137,13 +59,30 @@ async function data_management_tests() {
         let recordID = await im.create_data_management(content, recordName, type, password, desc)
         let verified = await im.verify_data_management(recordID, type, content)
 
-        if (verified) {
-            return true
-        } else {
-            return "Verification failed for data management"
+        if (!verified) {
+            throw new Error("Failed verification of digital agreement")
         }
     } catch(err) {
-        return err
+        throw err
+    }
+
+    try {
+        let recordID = await im.create_data_management(content, "Editable Record", 'editable', password, desc)
+        let verified = await im.verify_data_management(recordID, type, content)
+
+        if (!verified) {
+            throw new Error("Failed verification of digital agreement")
+        }
+
+        let updatedContent = "NEW_CONTENT"
+        let update = await im.update_data_management(recordID, updatedContent, password)
+        verified = await im.verify_data_management(recordID, type, updatedContent)
+
+        if (!verified) {
+            throw new Error("Failed verification of digital agreement")
+        }
+    } catch(err) {
+        throw err
     }
 }
 
@@ -156,63 +95,74 @@ async function digital_agreement_tests() {
     try {
         let recordID = await im.create_digital_agreement(content, recordName, type, password, [], desc)
         let verified = await im.verify_digital_agreement(recordID, type, content)
-        
+
         if (verified) {
             return true
         } else {
-            return "Verification failed for digital agreement"
+            throw "Failed verification of digital agreement"
         }
     } catch(err) {
-        return err
+        throw err
     }
 }
 
-function test_encryption() {
-    let plaintext = "hello world"
-    let password = "PASSWORD"
+async function test_encryption(attempts) {
+    attempts = attempts || 1000
 
-    let cipherObject = im.encrypt_string(plaintext)
-    if (cipherObject.ciphertext == plaintext) {
-        console.error("encrypt_string did not modify the plaintext at all...")
-        return false
+    for (let i=0; i < attempts; i++){
+        let plaintext = 'asd8fu1203hfoiasvjnaosdf081083u12iufnojasdnfrandom'
+
+        let cipherObject = im.encrypt_string(plaintext)
+        if (cipherObject.ciphertext == plaintext) {
+            throw new Error("encrypt_string did not modify the plaintext at all...")
+        }
+
+        let ciphertext = cipherObject.ciphertext
+        let key = cipherObject.key
+        let iv = cipherObject.iv
+        let decrypted = im.decrypt_string(ciphertext, key, iv) 
+        if (decrypted !== plaintext) {
+            throw new Error(`Failed to decrypt. correct plaintext: ${plaintext} result: ${decrypted}`)
+        }
+
+        key = im.generate_key_from_password(password)
+        cipherObject = im.encrypt_string_with_key(plaintext, key)
+        if (cipherObject.ciphertext == plaintext) {
+            throw new Error("encrypt_string did not modify the plaintext at all... (using passgen key)")
+        }
+
+        ciphertext = cipherObject.ciphertext
+        key = cipherObject.key
+        iv = cipherObject.iv
+        decrypted = im.decrypt_string(ciphertext, key, iv)
+        if (decrypted !== plaintext) {
+            throw new Error(`Failed to decrypt [using password]. correct plaintext: ${plaintext} result: ${decrypted}`)
+        }
+
+        cipherObject = im.encrypt_string_with_password(plaintext, password)
+        if (cipherObject.ciphertext == plaintext) {
+            throw new Error("encrypt_string did not modify the plaintext at all... (using convenience passgen key)")
+        }
+
+        ciphertext = cipherObject.ciphertext
+        key = cipherObject.key
+        iv = cipherObject.iv
+        if (im.decrypt_string(ciphertext, key, iv) !== plaintext) {
+            throw new Error("Failed to decrypt correct plaintext (using convenience passgen key)")
+        }
     }
+}
 
-    let ciphertext = cipherObject.ciphertext
-    let key = cipherObject.key
-    let iv = cipherObject.iv
-    if (im.decrypt_string(ciphertext, key, iv) !== plaintext) {
-        console.error("Failed to decrypt correct plaintext")
-        return false
+async function test_file_upload() {
+    try  {
+        const fileContent = "test file content"
+        const recordID = await im.upload_file_data(fileContent, "test", password, '')
+        const downloaded = await im.download_file_for_recordID(recordID, password, 0, true)
+        if (fileContent !== downloaded.data) {
+            throw new Error("Uploaded content does not match downloaded content")
+        }
+    } catch(err) {
+        throw err
     }
-
-    key = im.generate_key_from_password(password)
-    cipherObject = im.encrypt_string_with_key(plaintext, key)
-    if (cipherObject.ciphertext == plaintext) {
-        console.error("encrypt_string did not modify the plaintext at all... (using passgen key)")
-        return false
-    }
-
-    ciphertext = cipherObject.ciphertext
-    key = cipherObject.key
-    iv = cipherObject.iv
-    if (im.decrypt_string(ciphertext, key, iv) !== plaintext) {
-        console.error("Failed to decrypt correct plaintext (using passgen key)")
-        return false
-    }
-
-    cipherObject = im.encrypt_string_with_password(plaintext, password)
-    if (cipherObject.ciphertext == plaintext) {
-        console.error("encrypt_string did not modify the plaintext at all... (using convenience passgen key)")
-        return false
-    }
-
-    ciphertext = cipherObject.ciphertext
-    key = cipherObject.key
-    iv = cipherObject.iv
-    if (im.decrypt_string(ciphertext, key, iv) !== plaintext) {
-        console.error("Failed to decrypt correct plaintext (using convenience passgen key)")
-        return false
-    }
-
-    return true
+    
 }

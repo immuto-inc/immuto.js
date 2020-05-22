@@ -27,7 +27,9 @@
   },
   "homepage": "https://www.immuto.io",
   "dependencies": {
+    "blob": "^0.1.0",
     "eth-sig-util": "^2.5.3",
+    "node-rsa": "^1.0.8",
     "web3": "^1.2.7",
     "xmlhttprequest": "^1.8.0"
   },
