@@ -172,12 +172,10 @@ exports.init = function(debug, debugHost) {
                 address: recordID.substring(0, 42),
                 shardHex: recordID.substring(42)
             }
-            
-            return false
         },
         shard_to_URL: (shardIndex, forVerification) => {
             if (!shardIndex && shardIndex !== 0) {
-                throw "No prefix given"
+                throw new Error("No prefix given")
             }
 
             if (shardIndex === 0) {
@@ -338,9 +336,9 @@ exports.init = function(debug, debugHost) {
             http.open("POST", this.host + "/submit-org-member", true)
             http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             http.onreadystatechange = () => {
-                if (http.readyState == 4 && http.status == 200) {
+                if (http.readyState === 4 && http.status === 200) {
                     resolve(http.responseText)
-                } else if (http.readyState == 4) {
+                } else if (http.readyState === 4) {
                     reject(http.responseText)
                 }
             }
@@ -394,7 +392,7 @@ exports.init = function(debug, debugHost) {
                         let sendstring = "address=" + account.address
                         sendstring += "&signature=" + JSON.stringify(signature)
                         sendstring += "&authToken=" + this.authToken
-                        sendstring += "&returnUserInfo=" + "true"
+                        sendstring += "&returnUserInfo=" + true
 
                         let http2 = new_HTTP()
                         http2.open("POST", this.host + "/prove-address", true)
