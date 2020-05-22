@@ -731,6 +731,7 @@ exports.init = function(debug, debugHost) {
     this.upload_file_data = function(fileContent, fileName, password, projectID, handleProgress) {
         return new Promise((resolve, reject) => {
             let file = {name: fileName, type: "text/plain"}
+            projectID = projectID || ''
 
             this.create_data_management(fileContent, fileName, "editable", password, "")
             .then((recordID) => {
@@ -738,6 +739,15 @@ exports.init = function(debug, debugHost) {
                 .then(done => resolve(recordID))
                 .catch(err => reject(err))
             })
+            .catch(err => reject(err))
+        })
+    }
+
+    this.download_file_data = function(recordID, password, version) {
+        version = version || 0
+        return new Promise((resolve, reject) => {
+            this.download_file_for_recordID(recordID, password, version, true)
+            .then(file => resolve(file.data))
             .catch(err => reject(err))
         })
     }

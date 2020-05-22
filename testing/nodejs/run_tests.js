@@ -23,7 +23,7 @@ run_tests(email, password)
 async function run_tests(email, password) {
     try {       
         await im.authenticate(email, password) 
-        await test_org_member_registration()
+        // await test_org_member_registration()
         await im.deauthenticate() // de-authenticate org-member
         await im.authenticate(email, password) // re-authenticate org-admin
 

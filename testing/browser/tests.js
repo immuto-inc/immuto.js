@@ -18,7 +18,7 @@ async function run_tests(email, password) {
     try {       
         await im.deauthenticate() // in case auth cached by browser
         await im.authenticate(email, password) 
-        await test_org_member_registration()
+        //await test_org_member_registration()
         await im.deauthenticate() // de-authenticate org-member
         await im.authenticate(email, password) // re-authenticate org-admin
 
@@ -172,8 +172,8 @@ async function test_sharing() {
     try {
         const fileContent = "test file content"
         const recordID = await im.upload_file_data(fileContent, "test", password, '')
-        let downloaded = await im.download_file_for_recordID(recordID, password, 0, true)
-        if (fileContent !== downloaded.data) {
+        let data = await im.download_file_data(recordID, password, 0, true)
+        if (fileContent !== data) {
             throw new Error("Uploaded content does not match downloaded content")
         }
         await im.share_record(recordID, "test@test.com", password)
@@ -182,8 +182,8 @@ async function test_sharing() {
         await im.deauthenticate()
         await im.authenticate("test@test.com", "testpassword")
         console.log("Authenticated as test@test.com")
-        downloaded = await im.download_file_for_recordID(recordID, "testpassword", 0, true)
-        if (fileContent !== downloaded.data) {
+        data = await im.download_file_data(recordID, "testpassword", 0)
+        if (fileContent !== data) {
             throw new Error("Uploaded content does not match downloaded content for shared recipient")
         }
     } catch(err) {
