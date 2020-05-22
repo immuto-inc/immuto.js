@@ -28,7 +28,7 @@ async function run_tests(email, password) {
         await im.authenticate(email, password) // re-authenticate org-admin
 
         await data_management_tests()
-        await digital_agreement_tests()
+        // await digital_agreement_tests() // deprecated, for now
         await test_encryption()
 
         // await test_file_upload() NOT SUPPORTED IN BACKEND ATM
@@ -65,8 +65,10 @@ async function data_management_tests() {
         let verified = await im.verify_data_management(recordID, type, content)
 
         if (!verified) {
-            throw new Error("Failed verification of digital agreement")
+            throw new Error("Failed verification of data management")
         }
+
+        console.log('Passed basic data management test')
     } catch(err) {
         throw err
     }
@@ -76,7 +78,7 @@ async function data_management_tests() {
         let verified = await im.verify_data_management(recordID, type, content)
 
         if (!verified) {
-            throw new Error("Failed verification of digital agreement")
+            throw new Error("Failed verification of editable data management")
         }
 
         let updatedContent = "NEW_CONTENT"
@@ -84,8 +86,10 @@ async function data_management_tests() {
         verified = await im.verify_data_management(recordID, type, updatedContent)
 
         if (!verified) {
-            throw new Error("Failed verification of digital agreement")
+            throw new Error(`Failed verification of editable data management after update for recordID ${recordID}`)
         }
+
+        console.log('Passed editable')
     } catch(err) {
         throw err
     }

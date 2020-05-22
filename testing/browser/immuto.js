@@ -149,20 +149,73 @@ exports.init = function(debug, debugHost) {
             let address = sigUtil.recoverPersonalSignature({data: message, sig: signature})
             return this.web3.utils.toChecksumAddress(address)
         },
-        is_valid_recordID: (ID) => {
+        parse_record_ID: (recordID) => {
             
-            if (!ID) return false;
-            if ("string" !== typeof ID) return false;
+            if (!recordID) return false;
+            if ("string" !== typeof recordID) return false;
 
-            let idLength = ID.length
+            let idLength = recordID.length
 
             if (40 === idLength || 42 === idLength) {
                 // isAddress returns true with or without leading 0x
                 // isAddress returns true if ID is a string and false if it's an integer
-                return this.web3.utils.isAddress(ID) 
+                if (this.web3.utils.isAddress(recordID)) {
+                    return recordID
+                }
+            }
+
+            if (recordID.length !== 48) {
+                throw new Error(`Invalid recordID: ${recordID}, reason: length not 50`)
+            }
+
+            return {
+                address: recordID.substring(0, 42),
+                shardHex: recordID.substring(42)
             }
             
             return false
+        },
+        shard_to_URL: (shardIndex, forVerification) => {
+            if (!shardIndex && shardIndex !== 0) {
+                throw "No prefix given"
+            }
+
+            if (shardIndex === 0) {
+                if (forVerification) {
+                    return "http://localhost:8443"
+                }
+                return "http://localhost:8545"
+            } 
+
+            if (this.host === "https://www.immuto.io") {
+                if (forVerification) {
+                    return `https://prod${shardIndex}.immuto.io:8443`
+                }
+                return `https://prod${shardIndex}.immuto.io:443`
+            }
+
+            if (forVerification) {
+                return `https://shard${shardIndex}.immuto.io:8443`
+            }
+            return `https://shard${shardIndex}.immuto.io:443`
+        },
+
+        shardIndex_to_hex: (shardIndex) => {
+            const SHARD_LENGTH = 6
+            let hexString = (shardIndex).toString(16)
+            if (hexString > 16777215) { // ffffff
+                throw new Error(`hexString: ${hexString} exceeds width of ${SHARD_LENGTH}`)
+            }
+
+            while (hexString.length < SHARD_LENGTH) {
+                hexString = "0" + hexString
+            }
+
+            return hexString
+        },
+
+        hex_to_shardIndex: (hexString) => {
+            return parseInt(hexString, 16)
         }
     }
 
@@ -655,7 +708,7 @@ exports.init = function(debug, debugHost) {
             encryptedFile.lastModifiedDate = new Date();
             encryptedFile.name = file.name;
 
-            sendstring  = 'fileSize=' + encryptedFile.size
+            let sendstring  = 'fileSize=' + encryptedFile.size
             sendstring += '&fileName=' + file.name
             sendstring += '&fileType=' + file.type
             sendstring += '&recordID=' + recordID
@@ -921,7 +974,7 @@ exports.init = function(debug, debugHost) {
 
     this.update_data_management = function(recordID, newContent, password) {
         return new Promise((resolve, reject) => {
-            if (!this.utils.is_valid_recordID(recordID)) {
+            if (!this.utils.parse_record_ID(recordID)) {
                 reject("Invalid recordID"); return; 
             }
 
@@ -935,7 +988,6 @@ exports.init = function(debug, debugHost) {
                 reject(err);
                 return;
             }
-
             this.get_data_management_history(recordID, 'editable').then((history) => {
                 let priorHash = history.pop().hash
                 let signature = account.sign(newContent + priorHash)
@@ -967,87 +1019,72 @@ exports.init = function(debug, debugHost) {
 
     this.get_data_management_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
-            if (!this.utils.is_valid_recordID(recordID)) {
+            let recordInfo = this.utils.parse_record_ID(recordID)
+
+            if (!recordInfo) {
                 reject("Invalid recordID"); return; 
             }
-            if (this.connected) { 
-                let contract = undefined
-                if (type === "basic") {
-                    contract = new this.web3.eth.Contract(BASIC_DATA_STORAGE_ABI, recordID);
-                } else if (type === "editable") {
-                    contract = new this.web3.eth.Contract(EDITABLE_DATA_STORAGE_ABI, recordID);
-                } else {
-                    console.warn(`Unexpected type: ${type}... defaulting to editable`)
-                    contract = new this.web3.eth.Contract(EDITABLE_DATA_STORAGE_ABI, recordID);
-                }
-                
-                contract.getPastEvents('Updated', {
-                    fromBlock: 0
-                })
-                .then((events) => {
-                    let history = []
-                    for (let i = 0; i < events.length; i++) {
-                        let event = events[i]
-                        history.push({
-                            timestamp: this.utils.convert_unix_time(event.returnValues.timestamp),
-                            hash: event.returnValues.hash,
-                            signer: event.returnValues.updater
-                        })
-                    }
-                    resolve(history)
-                }).catch((err) => {
-                    reject(err)
-                })
+
+            let shardIndex = this.utils.hex_to_shardIndex(recordInfo.shardHex)
+            const web3 = new Web3(this.utils.shard_to_URL(shardIndex, true))
+
+            let contract = undefined
+            if (type === "basic") {
+                contract = new web3.eth.Contract(BASIC_DATA_STORAGE_ABI, recordInfo.address);
+            } else if (type === "editable") {
+                contract = new web3.eth.Contract(EDITABLE_DATA_STORAGE_ABI, recordInfo.address);
             } else {
-                if (!this.email) {
-                    reject("User not yet authenticated. No email provided.")
-                    return
-                } else { 
-                    this.establish_connection(this.email).then(() => {
-                        // this.connected is now true, can safely recurse once
-                        this.get_data_management_history(recordID, type).then((history) => {
-                            resolve(history)
-                        }).catch((err) => {
-                            reject(err)
-                        })
-                    }).catch((err) => {
-                        reject("Unable to establish connection")
+                console.warn(`Unexpected type: ${type}... defaulting to editable`)
+                contract = new web3.eth.Contract(EDITABLE_DATA_STORAGE_ABI, recordInfo.address);
+            }
+            
+            contract.getPastEvents('Updated', {
+                fromBlock: 0
+            })
+            .then((events) => {
+                let history = []
+                for (let i = 0; i < events.length; i++) {
+                    let event = events[i]
+                    history.push({
+                        timestamp: this.utils.convert_unix_time(event.returnValues.timestamp),
+                        hash: event.returnValues.hash,
+                        signer: event.returnValues.updater
                     })
                 }
-            }
+                resolve(history)
+            }).catch((err) => {
+                reject(err)
+            })
         })
     }
 
     this.verify_data_management = function (recordID, type, verificationContent) {
         return new Promise((resolve, reject) => {
-            if (!this.utils.is_valid_recordID(recordID)) {
+            let recordInfo = this.utils.parse_record_ID(recordID)
+            if (!recordInfo) {
                 reject("Invalid recordID"); return; 
             }
 
-            if (this.web3) { // be more thorough later
-                this.get_data_management_history(recordID, type).then((history) => {
-                    this.utils.addresses_to_emails(history).then((history) => {
-                        for (let i = 0; i < history.length; i++) {
-                            let priorHash = ""
-                            if (i > 0) 
-                                priorHash = history[i - 1].hash
+            this.get_data_management_history(recordID, type).then((history) => {
+                this.utils.addresses_to_emails(history).then((history) => {
+                    for (let i = 0; i < history.length; i++) {
+                        let priorHash = ""
+                        if (i > 0) 
+                            priorHash = history[i - 1].hash
 
-                            let hash = this.web3.eth.accounts.hashMessage(verificationContent + priorHash)
-                            if (hash.toLowerCase() === history[i].hash.toLowerCase()) {
-                                resolve(history[i])
-                                return
-                            }
+                        let hash = this.web3.eth.accounts.hashMessage(verificationContent + priorHash)
+                        if (hash.toLowerCase() === history[i].hash.toLowerCase()) {
+                            resolve(history[i])
+                            return
                         }
-                        resolve(false)
-                    }).catch((err) => {
-                        reject(err)
-                    })
+                    }
+                    resolve(false)
                 }).catch((err) => {
                     reject(err)
                 })
-            } else {
-               reject("Connection to verification server not established. Call establish_connection to setup a connection.")
-            }
+            }).catch((err) => {
+                reject(err)
+            })
         })
     }
 
@@ -1099,7 +1136,7 @@ exports.init = function(debug, debugHost) {
 
     this.sign_digital_agreement = function(recordID, password) {
         return new Promise((resolve, reject) => {
-            if (!this.utils.is_valid_recordID(recordID)) {
+            if (!this.utils.parse_record_ID(recordID)) {
                 reject("Invalid recordID"); return; 
             }
 
@@ -1158,7 +1195,7 @@ exports.init = function(debug, debugHost) {
 
     this.update_digital_agreement = function(recordID, newContent, password) {
         return new Promise((resolve, reject) => {
-            if (!this.utils.is_valid_recordID(recordID)) {
+            if (!this.utils.parse_record_ID(recordID)) {
                 reject("Invalid recordID"); return; 
             }
 
@@ -1201,7 +1238,7 @@ exports.init = function(debug, debugHost) {
 
     this.verify_digital_agreement = function(recordID, type, verificationContent) {
         return new Promise((resolve, reject) => {
-            if (!this.utils.is_valid_recordID(recordID)) {
+            if (!this.utils.parse_record_ID(recordID)) {
                 reject("Invalid recordID"); return; 
             }
 
@@ -1308,7 +1345,7 @@ exports.init = function(debug, debugHost) {
 
     this.get_digital_agreement_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
-            if (!this.utils.is_valid_recordID(recordID)) {
+            if (!this.utils.parse_record_ID(recordID)) {
                 reject("Invalid recordID"); return; 
             }
 

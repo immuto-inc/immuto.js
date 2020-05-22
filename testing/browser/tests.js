@@ -22,9 +22,9 @@ async function run_tests(email, password) {
         await im.deauthenticate() // de-authenticate org-member
         await im.authenticate(email, password) // re-authenticate org-admin
 
-        // await data_management_tests()
-        // await digital_agreement_tests()
-        // await test_encryption()
+        await data_management_tests()
+        // await digital_agreement_tests() // deprecated, for now
+        await test_encryption()
 
         await test_file_upload()
 
