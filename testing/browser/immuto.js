@@ -464,7 +464,7 @@ exports.init = function(debug, debugHost) {
         const decryptKey = this.generate_key_from_password(password)  
         const iv = this.string_to_iv(rsaIv)
 
-        return this.decrypt_string(encryptedKey, decryptKey, iv, 'hex')
+        return this.decrypt_string(encryptedKey, decryptKey, iv, 'base64')
     }
 
     this.generate_RSA_keypair = function(password) {
@@ -477,7 +477,7 @@ exports.init = function(debug, debugHost) {
             const rsaKey = NodeRSA({b: 2048})
             const pubKey = rsaKey.exportKey('public')
             const privKey = rsaKey.exportKey('private')
-            const encrypted = this.encrypt_string_with_password(privKey, password, 'hex')
+            const encrypted = this.encrypt_string_with_password(privKey, password, 'base64')
             
             const iv = this.iv_to_string(encrypted.iv)
             const encryptedPrivateKey = encrypted.ciphertext
@@ -542,6 +542,16 @@ exports.init = function(debug, debugHost) {
         }
 
         return iv
+    }
+
+    this.encrypt_with_publicKey = function(plaintext, publicKey) {
+        const key = new NodeRSA(publicKey)
+        return key.encrypt(plaintext, 'base64')
+    }
+
+    this.decrypt_with_privateKey = function(ciphertext, privateKey) {
+        const key = new NodeRSA(privateKey)
+        return key.decrypt(ciphertext, 'utf8')
     }
 
     this.encrypt_string_with_key = function(plaintext, key, encoding) {
@@ -642,7 +652,7 @@ exports.init = function(debug, debugHost) {
             JSON.stringify({
                 key: cipherInfo.key,
                 iv: this.iv_to_string(cipherInfo.iv)
-            }), password, 'hex')
+            }), password, 'base64')
 
             let encryptedFile = new Blob([this.str2ab(cipherInfo.ciphertext)], {type: file.type});
             encryptedFile.lastModifiedDate = new Date();
@@ -804,8 +814,46 @@ exports.init = function(debug, debugHost) {
         return "https://" + S3_BUCKET +  ".s3.amazonaws.com/readable/" + remoteURL
     }
 
+    this.decrypt_fileKey_symmetric = function(encryptedKeyInfo, password) {
+        let decryptKey = this.generate_key_from_password(password)  
+        let encryptedKey = encryptedKeyInfo.encryptedKey
+        let iv = this.string_to_iv(encryptedKeyInfo.iv)
+
+        let fileDecryptInfo = this.decrypt_string(encryptedKey, decryptKey, iv, 'base64')
+
+        let parsed = JSON.parse(fileDecryptInfo)          
+        let fileDKey = parsed.key.data
+        let fileDiv = this.string_to_iv(parsed.iv)
+
+        return {
+            key: fileDKey,
+            iv: fileDiv
+        }
+    }
+
+    this.decrypt_fileKey_asymmetric = function(encryptedKeyInfo, password) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const encryptedKey = encryptedKeyInfo.encryptedKey
+                const userInfo = await this.get_user_info()
+                const privateKey = this.decrypt_RSA_private_key(userInfo.privateKey, userInfo.rsaIv, password)
+                let fileDecryptInfo = JSON.parse(this.decrypt_with_privateKey(encryptedKey, privateKey))
+                fileDecryptInfo.iv = this.string_to_iv(fileDecryptInfo.iv)
+                resolve(fileDecryptInfo)
+            } catch(err) {
+                reject(err)
+            }
+
+        })
+    }
+
+    this.key_to_string = function(keyInfo) {
+        keyInfo.iv = this.iv_to_string(keyInfo.iv)
+        return JSON.stringify(keyInfo)
+    }
+
     this.download_file_for_record = function(recordInfo, password, version, asPlaintext) {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             if (!recordInfo.files) {
                 reject("No files exist for record")
             }
@@ -818,18 +866,26 @@ exports.init = function(debug, debugHost) {
             if (version !== 0)
                 version = version || recordInfo.files.length - 1 // default to recent
             const fileInfo = recordInfo.files[version]
-
-        
-            let decryptKey = this.generate_key_from_password(password)  
             let fileURL = fileInfo.remoteURL
 
-            let encryptedKeyInfo = recordInfo[this.email.replace(/\./g, " ")]
-            let encryptedKey = encryptedKeyInfo.encryptedKey
-            let iv = this.string_to_iv(encryptedKeyInfo.iv)
+            let encryptedKeyInfo = recordInfo[this.email.toLowerCase().replace(/\./g, " ")]
 
-            let fileDecryptInfo = JSON.parse(this.decrypt_string(encryptedKey, decryptKey, iv, 'hex'))          
-            let fileDKey = fileDecryptInfo.key.data
-            let fileDiv = this.string_to_iv(fileDecryptInfo.iv)
+            if (!encryptedKeyInfo) {
+                reject(`User ${this.email} does not have key for decrypting file`); return;
+            }
+
+            let fileDecryptInfo = {}
+            if (encryptedKeyInfo.iv) { // for symmetric, personal key, non-RSA
+                fileDecryptInfo = this.decrypt_fileKey_symmetric(encryptedKeyInfo, password) 
+            } else { // for RSA
+                try {
+                    fileDecryptInfo = await this.decrypt_fileKey_asymmetric(encryptedKeyInfo, password) 
+                } catch(err) {
+                    reject(err)
+                }
+            }
+            let fileDKey = fileDecryptInfo.key
+            let fileDiv = fileDecryptInfo.iv
 
             let http = new_HTTP();
             http.open("GET", this.build_full_URL(fileURL), true);
@@ -837,7 +893,7 @@ exports.init = function(debug, debugHost) {
             http.onreadystatechange = () => {
                 if (http.readyState === 4 && http.status === 200) {
                     let encryptedData = new Uint8Array(http.response)
-                    let plaintext = this.decrypt_string(encryptedData, fileDKey, fileDiv, 'hex') // this can be used for auto-verification (before splitting)
+                    let plaintext = this.decrypt_string(encryptedData, fileDKey, fileDiv, 'base64') // this can be used for auto-verification (before splitting)
 
                     let file = {
                         type: fileInfo.type,
@@ -867,6 +923,77 @@ exports.init = function(debug, debugHost) {
         })
     }
 
+    this.get_user_info = function() {
+        return new Promise((resolve, reject) => {
+            var xhr = new_HTTP();
+
+            let url = this.host + '/get-user-info?authToken=' + this.authToken
+            xhr.open("GET", url, true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    resolve(JSON.parse(xhr.responseText)) 
+                } else if (xhr.readyState === 4) {
+                    reject(xhr.responseText)
+                }
+            };
+            xhr.send();
+        })
+    }
+
+    this.share_record_access = function(recordID, shareEmail) {
+        return new Promise((resolve, reject) => {
+            var xhr = new_HTTP();
+
+            xhr.open("POST", this.host + '/share-record', true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === 4 && xhr.status === 204) {
+                    resolve(xhr.responseText) 
+                } else if (xhr.readyState === 4) {
+                    reject(xhr.responseText)
+                }
+            };
+
+            let sendstring = 'recordID=' + recordID
+            sendstring += '&shareEmail=' + shareEmail
+            sendstring += '&authToken=' + this.authToken
+            xhr.send(sendstring);
+        })
+    }
+
+    this.share_record = function(recordID, shareEmail, password) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                let done = await this.share_record_access(recordID, shareEmail)
+                let userInfo = await this.get_user_info()
+                let recordInfo = await this.get_info_for_recordID(recordID)
+                let publicKey = await this.get_public_key(shareEmail)
+
+                if (recordInfo.creator.toLowerCase() !== this.email.toLowerCase()) {
+                    reject(`Only the record creator ${recordInfo.creator} may share file content`)
+                    return
+                }
+                if (!recordInfo.files || (recordInfo.files && recordInfo.files.length === 0)) {
+                    reject("No files exist for record"); return;
+                }
+                let keyField = this.email.toLowerCase().replace(/\./g, " ")
+                if (!recordInfo[keyField]) {
+                    reject(`No key set for user ${this.email}`); return;
+                }
+
+                const keyInfo = this.decrypt_fileKey_symmetric(recordInfo[keyField], password)
+                const keyString = this.key_to_string(keyInfo)
+                const encryptedKey = this.encrypt_with_publicKey(keyString, publicKey)
+
+                this.store_user_key_for_record(shareEmail, recordID, encryptedKey)
+                .catch(err => reject(err))
+                .finally(() => resolve())
+            } catch(err) {
+                reject(err)
+            }
+        })
+    }
 
     this.create_data_management = function(content, name, type, password, desc) {
         return new Promise((resolve, reject) => {

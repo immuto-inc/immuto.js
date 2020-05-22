@@ -22,18 +22,21 @@ run_tests(email, password)
 
 async function run_tests(email, password) {
     try {       
-        // await im.authenticate(email, password) 
-        // await test_org_member_registration()
+        await im.authenticate(email, password) 
+        await test_org_member_registration()
         await im.deauthenticate() // de-authenticate org-member
         await im.authenticate(email, password) // re-authenticate org-admin
 
         await data_management_tests()
-        // await digital_agreement_tests() // deprecated, for now
         await test_encryption()
 
-        // await test_file_upload() NOT SUPPORTED IN BACKEND ATM
+
+        await test_sharing()
 
         console.log("All tests passed!")
+
+        // await test_file_upload() NOT SUPPORTED IN BACKEND ATM
+        // await digital_agreement_tests() // deprecated, for now
     } catch (err) {
         console.error("Error during tests:")
         console.error(err)
@@ -175,4 +178,19 @@ async function test_file_upload() {
         throw err
     }
     
+}
+
+async function test_sharing() {
+    let content = "EXAMPLE CONTENT"
+    let recordName = "A Record"
+    let type = "basic" // alternatively, could be 'editable'
+    let desc = "Record Description" // optional
+
+    try {
+        let recordID = await im.create_data_management(content, recordName, type, password, desc)
+        await im.share_record_access(recordID, "test@test.com")
+        await im.share_record_access(recordID, "test@test.com") // ensure no duplication
+    } catch(err) {
+        throw err
+    }
 }
