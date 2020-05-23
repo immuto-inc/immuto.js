@@ -9,9 +9,9 @@ You can find complete documentation <a href="https://www.immuto.io/api-documenta
 
 ### NodeJS
 ```
-npm install immuto-backend --save
+npm install immuto-sdk --save
 ```
-Please ensure you use "immuto-backend" and not "immuto"
+Please ensure you use "immuto-sdk" and not "immuto"
 
 ### Browser
 You may download a pre-built version from the <a href="https://github.com/immuto-inc/immuto.js/releases"> releases on GitHub </a>. Include
