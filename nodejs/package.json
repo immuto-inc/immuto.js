@@ -1,7 +1,7 @@
 {
-  "name": "immuto-backend",
-  "version": "0.1.9",
-  "description": "Immuto's JavaScript library for record creation and verification.",
+  "name": "immuto-sdk",
+  "version": "1.0.0",
+  "description": "Immuto's JavaScript library for secure data management",
   "main": "immuto.js",
   "scripts": {
     "test": "echo 'Find full testing in tests directory (../testing/nodejs)'"
@@ -18,7 +18,10 @@
     "verification",
     "security",
     "record",
-    "keeping"
+    "keeping",
+    "encryption",
+    "privacy",
+    "end-to-end"
   ],
   "author": "Sebastian Coates",
   "license": "MIT",
