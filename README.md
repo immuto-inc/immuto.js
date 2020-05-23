@@ -1,6 +1,6 @@
 # immuto.js
 
-#### Immuto's JavaScript library for record creation and verification.
+#### Immuto's JavaScript library for secure data management
 
 ## Documentation
 You can find complete documentation <a href="https://www.immuto.io/api-documentation"> here</a>. 
