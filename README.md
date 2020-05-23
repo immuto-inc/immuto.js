@@ -9,18 +9,18 @@ You can find complete documentation <a href="https://www.immuto.io/api-documenta
 
 ### NodeJS
 ```
-npm install immuto-backend --save
+npm install immuto-sdk --save
 ```
-Please ensure you use "immuto-backend" and not "immuto"
+Please ensure you use "immuto-sdk" and not "immuto"
 
 ### Browser
-You may download a pre-built version by looking at the "Releases" tab. Include
+You may download a pre-built version by looking at the "Releases" tab on GitHub. Include
 in an HTML page as follows:
 ```
 <script src="immuto.js"></script>
 ```
 
-If you would like to build the browser code from scratch, you will need NPM and Browserify:
+If you would like to build the browser code from scratch, you will need NPM and a tool like Browserify:
 ```
 git clone https://www.github.com/immuto-inc/immuto.js
 cd immuto.js/browser
