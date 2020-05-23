@@ -18,7 +18,7 @@ async function run_tests(email, password) {
     try {       
         await im.deauthenticate() // in case auth cached by browser
         await im.authenticate(email, password) 
-        //await test_org_member_registration()
+        // await test_org_member_registration()
         await im.deauthenticate() // de-authenticate org-member
         await im.authenticate(email, password) // re-authenticate org-admin
 
@@ -27,7 +27,8 @@ async function run_tests(email, password) {
         await test_file_upload()
 
         await test_sharing()
-
+        
+        await test_example_usage()
         console.log("All tests passed!")
 
         // await digital_agreement_tests() // deprecated, for now
@@ -171,8 +172,8 @@ async function test_file_upload() {
 async function test_sharing() {
     try {
         const fileContent = "test file content"
-        const recordID = await im.upload_file_data(fileContent, "test", password, '')
-        let data = await im.download_file_data(recordID, password, 0, true)
+        const recordID = await im.upload_file_data(fileContent, "test", password)
+        let data = await im.download_file_data(recordID, password)
         if (fileContent !== data) {
             throw new Error("Uploaded content does not match downloaded content")
         }
@@ -182,7 +183,7 @@ async function test_sharing() {
         await im.deauthenticate()
         await im.authenticate("test@test.com", "testpassword")
         console.log("Authenticated as test@test.com")
-        data = await im.download_file_data(recordID, "testpassword", 0)
+        data = await im.download_file_data(recordID, "testpassword")
         if (fileContent !== data) {
             throw new Error("Uploaded content does not match downloaded content for shared recipient")
         }
@@ -190,3 +191,36 @@ async function test_sharing() {
         throw err
     }
 }
+
+async function test_example_usage() {
+    await im.deauthenticate() // in case auth cached by browser
+
+    try {
+        const email1 = email
+        const pass1 = password
+        const email2 = "test@test.com"
+        const pass2 = "testpassword"
+        await im.authenticate(email1, pass1) // authenticate with user 1
+
+        const fileContent = "example file content"
+        const fileName = "Test Name"
+        const recordID = await im.upload_file_data(fileContent, fileName, pass1)
+        let data = await im.download_file_data(recordID, pass1)
+        if (fileContent === data) {
+            console.log("Successfully downloaded personal record")
+        }
+
+        await im.share_record(recordID, email2, pass1)
+        await im.deauthenticate()
+        await im.authenticate(email2, pass2) // authenticate with user 2
+
+        data = await im.download_file_data(recordID, pass2)
+        if (fileContent === data) {
+            console.log("Successfully downloaded shared record")
+        }
+
+    } catch(err) {
+        console.error(err)
+    }
+}
+

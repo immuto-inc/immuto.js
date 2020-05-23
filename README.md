@@ -5,6 +5,39 @@
 ## Documentation
 You can find complete documentation <a href="https://www.immuto.io/api-documentation"> here</a>. 
 
+## Example Usage
+```
+let im = Immuto.init(true, "https://dev.immuto.io") // remove params for production use
+try {
+    const email1 = "email1@example.com"
+    const pass1 = "password1"
+    const email2 = "email2@example.com"
+    const pass2 = "password2"
+    await im.authenticate(email1, pass1) // authenticate with user 1
+
+    const fileContent = "example file content"
+    const fileName = "Test Name"
+    const recordID = await im.upload_file_data(fileContent, fileName, pass1) // currently browser-only
+    let data = await im.download_file_data(recordID, pass1) // currently browser-only
+    if (fileContent === data) {
+        console.log("Successfully downloaded personal record")
+    }
+
+    await im.share_record(recordID, email2, pass1) // email2 must be registered and successfully logged-in once
+    await im.deauthenticate()
+    await im.authenticate(email2, pass2) // authenticate with user 2
+
+    data = await im.download_file_data(recordID, pass2) // currently browser-only
+    if (fileContent === data) {
+        console.log("Successfully downloaded shared record")
+    }    
+
+    await im.deauthenticate()
+} catch(err) {
+    console.error(err)
+}
+```
+
 ## Installation
 
 ### NodeJS
