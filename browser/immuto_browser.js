@@ -52,7 +52,7 @@ exports.init = function(debug, debugHost) {
             this.salt = ls.salt
             this.encryptedKey = ls.encryptedKey
             this.authToken = ls.authToken
-            this.email = ls.email
+            this.email = ls.email.toLowerCase()
         }
     }
 
@@ -232,6 +232,7 @@ exports.init = function(debug, debugHost) {
 
     this.register_user = function(email, password, orgToken) {
         return new Promise((resolve, reject) => {
+            email = email.toLowerCase()
             let salt = this.web3.utils.randomHex(32)
             let account = this.web3.eth.accounts.create()
             let address = account.address
@@ -306,6 +307,7 @@ exports.init = function(debug, debugHost) {
                 reject("Password required for authentication")
                 return
             }
+            email = email.toLowerCase()
 
             let http = new_HTTP()
 
