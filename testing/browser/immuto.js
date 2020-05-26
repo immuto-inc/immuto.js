@@ -977,8 +977,7 @@ exports.init = function(debug, debugHost) {
     this.share_record = function(recordID, shareEmail, password) {
         return new Promise(async (resolve, reject) => {
             try {
-                let done = await this.share_record_access(recordID, shareEmail)
-                let userInfo = await this.get_user_info()
+                await this.share_record_access(recordID, shareEmail)
                 let recordInfo = await this.get_info_for_recordID(recordID)
                 let publicKey = await this.get_public_key(shareEmail)
 
