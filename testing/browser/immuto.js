@@ -25,7 +25,7 @@ function new_Form() { // for sending files with XMLHttpRequest
 }
 
 exports.init = function(debug, debugHost) {    
-    this.host = "https://www.immuto.io"
+    this.host = "https://api.immuto.io"
     if (debug === true) {
         if (debugHost)
             this.host = debugHost
@@ -34,7 +34,7 @@ exports.init = function(debug, debugHost) {
     }
 
     try {
-        this.web3 = new Web3("https://www.immuto.io") // Dummy provider because required on init now
+        this.web3 = new Web3("https://api.immuto.io") // Dummy provider because required on init now
     } catch(err) {
         console.error(err)
         throw new Error("Web3js is a required dependency of the Immuto API. Make sure it is included wherever immuto.js is present.")
@@ -50,11 +50,11 @@ exports.init = function(debug, debugHost) {
 
     if (IN_BROWSER) {
         let ls = window.localStorage // preserve session across pages
-        if (ls.authToken && ls.email && ls.salt && ls.encryptedKey) {
-            this.salt = ls.salt
-            this.encryptedKey = ls.encryptedKey
-            this.authToken = ls.authToken
-            this.email = ls.email.toLowerCase()
+        if (ls.IMMUTO_authToken && ls.IMMUTO_email && ls.IMMUTO_salt && ls.IMMUTO_encryptedKey) {
+            this.salt = ls.IMMUTO_salt
+            this.encryptedKey = ls.IMMUTO_encryptedKey
+            this.authToken = ls.IMMUTO_authToken
+            this.email = ls.IMMUTO_email.toLowerCase()
         }
     }
 
@@ -145,22 +145,11 @@ exports.init = function(debug, debugHost) {
             return this.web3.utils.toChecksumAddress(address)
         },
         parse_record_ID: (recordID) => {
-            
-            if (!recordID) return false;
-            if ("string" !== typeof recordID) return false;
-
-            let idLength = recordID.length
-
-            if (40 === idLength || 42 === idLength) {
-                // isAddress returns true with or without leading 0x
-                // isAddress returns true if ID is a string and false if it's an integer
-                if (this.web3.utils.isAddress(recordID)) {
-                    return recordID
-                }
-            }
+            if (!recordID) throw new Error("recordID is required");
+            if ("string" !== typeof recordID) throw new Error("recordID must be string");
 
             if (recordID.length !== 48) {
-                throw new Error(`Invalid recordID: ${recordID}, reason: length not 50`)
+                throw new Error(`Invalid recordID: ${recordID}, reason: length not 48`)
             }
 
             return {
@@ -214,6 +203,10 @@ exports.init = function(debug, debugHost) {
 
     this.get_registration_token = function(address) {
         return new Promise((resolve, reject) => {
+            if (!address) {
+                reject("User's address is required"); return;
+            }
+
             var http = new_HTTP()
 
             let sendstring = "address=" + address
@@ -234,6 +227,13 @@ exports.init = function(debug, debugHost) {
 
     this.register_user = function(email, password, orgToken) {
         return new Promise((resolve, reject) => {
+            if (!email) {
+                reject("User email is required"); return;
+            }
+            if (!password) {
+                reject("User password is required"); return;
+            }
+
             email = email.toLowerCase()
             let salt = this.web3.utils.randomHex(32)
             let account = this.web3.eth.accounts.create()
@@ -276,6 +276,11 @@ exports.init = function(debug, debugHost) {
     // Best for backend use only, while authenticated as organization admin
     this.permission_new_user = function(newUserEmail) {
         return new Promise((resolve, reject) => {
+            if (!newUserEmail) {
+                reject("User email is required");
+                return;
+            }
+
             let sendstring = "email=" + newUserEmail.toLowerCase()
             sendstring += "&noEmail=true" // Causes API to respond with authToken rather than emailing user
             sendstring += "&authToken=" + this.authToken // org admin authToken for permissioning new user registration
@@ -348,10 +353,10 @@ exports.init = function(debug, debugHost) {
                     http2.onreadystatechange = () => {
                         if (http2.readyState === 4 && (http2.status === 204 || http2.status === 200)) {
                             if (IN_BROWSER) {
-                                window.localStorage.authToken = this.authToken
-                                window.localStorage.email = email
-                                window.localStorage.salt = this.salt
-                                window.localStorage.encryptedKey = this.encryptedKey
+                                window.localStorage.IMMUTO_authToken = this.authToken
+                                window.localStorage.IMMUTO_email = email
+                                window.localStorage.IMMUTO_salt = this.salt
+                                window.localStorage.IMMUTO_encryptedKey = this.encryptedKey
                             }
                             this.email = email
 
@@ -391,13 +396,12 @@ exports.init = function(debug, debugHost) {
 
             if (IN_BROWSER) {
                 if (!this.authToken) {
-                    sendstring = `authToken=${window.localStorage.authToken}`
+                    sendstring = `authToken=${window.localStorage.IMMUTO_authToken}`
                 }
-                window.localStorage.authToken = ""
-                window.localStorage.email = ""
-                window.localStorage.salt = ""
-                window.localStorage.encryptedKey = ""
-                window.localStorage.password = "" // in case this is set elsewhere
+                window.localStorage.IMMUTO_authToken = ""
+                window.localStorage.IMMUTO_email = ""
+                window.localStorage.IMMUTO_salt = ""
+                window.localStorage.IMMUTO_encryptedKey = ""
             }
             this.authToken = ""
             this.email = ""
@@ -421,6 +425,9 @@ exports.init = function(debug, debugHost) {
     // convenience method for signing an arbitrary string
     // user address can be recovered from signature by utils.ecRecover
     this.sign_string = function(string, password) {
+        if (!string) throw new Error("string is required for signing")
+        if (!password) throw new Error("password is required to sign string")
+
         let account = undefined;
         try { 
             account = this.web3.eth.accounts.decrypt(
@@ -440,6 +447,11 @@ exports.init = function(debug, debugHost) {
 
     this.get_public_key = function(email) {
         return new Promise((resolve, reject) => {
+            if (!email) {
+                reject("email is required")
+                return
+            }
+
             let accessURL = this.host + "/public-key-for-user?email=" + email
             accessURL += "&authToken=" + this.authToken
 
@@ -460,12 +472,18 @@ exports.init = function(debug, debugHost) {
     }
 
     this.decrypt_RSA_private_key = function(encryptedKey, rsaIv, password) {
+        if (!encryptedKey) {
+            throw new Error("encryptedKey is required for decryption")
+        }
+        if (!rsaIv) {
+            throw new Error("iv is required for decryption")
+        }
         if (!password) {
             throw new Error("Password is required to decrypt RSA key")
         }
+
         const decryptKey = this.generate_key_from_password(password)  
         const iv = this.string_to_iv(rsaIv)
-
         return this.decrypt_string(encryptedKey, decryptKey, iv, 'base64')
     }
 
@@ -504,7 +522,7 @@ exports.init = function(debug, debugHost) {
                 };
                 xhr.send(form)
             } else {
-                form.submit(url, function(err, res) {
+                form.submit(url, function(err/*, res*/) {
                     if (err) {
                         reject(err)
                         return
@@ -516,6 +534,10 @@ exports.init = function(debug, debugHost) {
     }
 
     this.generate_key_from_password = function(password) {
+        if (!password) {
+            throw new Error("Password is required to generate key")
+        }
+
         const salt = this.salt
         if (!salt) {
             throw new Error("User must be authenticated to generate key")
@@ -528,6 +550,10 @@ exports.init = function(debug, debugHost) {
     }
 
     this.iv_to_string = function(iv) {
+        if (!iv) {
+            throw new Error("No iv given")
+        }
+
         let str = ""
         for (let i = 0; i < iv.length; i ++) {
             str += iv[i] + ","
@@ -536,6 +562,10 @@ exports.init = function(debug, debugHost) {
     }
 
     this.string_to_iv = function(str) {
+        if (!str) {
+            throw new Error("No string given")
+        }
+
         let ivStr = str.split(',')
 
         let iv = new Uint8Array(16)
@@ -547,16 +577,25 @@ exports.init = function(debug, debugHost) {
     }
 
     this.encrypt_with_publicKey = function(plaintext, publicKey) {
+        if (!plaintext) { throw new Error("No plaintext given") }
+        if (!publicKey) { throw new Error("No publicKey given") }
+
         const key = new NodeRSA(publicKey)
         return key.encrypt(plaintext, 'base64')
     }
 
     this.decrypt_with_privateKey = function(ciphertext, privateKey) {
+        if (!ciphertext) { throw new Error("No ciphertext given") }
+        if (!privateKey) { throw new Error("No privateKey given") }
+
         const key = new NodeRSA(privateKey)
         return key.decrypt(ciphertext, 'utf8')
     }
 
     this.encrypt_string_with_key = function(plaintext, key, encoding) {
+        if (!plaintext) { throw new Error("No plaintext given") }
+        if (!key) { throw new Error("No key given") }
+
         encoding = encoding || 'binary'
 
         const iv = crypto.randomBytes(16)
@@ -572,18 +611,25 @@ exports.init = function(debug, debugHost) {
     }
 
     this.encrypt_string_with_password = function(plaintext, password, encoding) {
-        if (!password) throw new Error("No password provided");
+        if (!plaintext) {throw new Error("No plaintext given") }
+        if (!password) { throw new Error("No password given") }
 
         let key = this.generate_key_from_password(password)
         return this.encrypt_string_with_key(plaintext, key, encoding)
     }
 
     this.encrypt_string = function(plaintext, encoding) {
+        if (!plaintext) { throw new Error("No plaintext given") }
+
         const key = crypto.randomBytes(32)
         return this.encrypt_string_with_key(plaintext, key, encoding)
     }
 
     this.decrypt_string = function(ciphertext, key, iv, encoding) {
+        if (!ciphertext) { throw new Error("No ciphertext given") }
+        if (!key) { throw new Error("No key given") }
+        if (!iv) { throw new Error("No iv given") }
+
         encoding = encoding || 'binary'
         let decipher = crypto.createDecipheriv(SYMMETRIC_SCHEME, key, iv)
         let decrypted = decipher.update(ciphertext, encoding, 'binary');
@@ -591,16 +637,20 @@ exports.init = function(debug, debugHost) {
     }
 
     this.str2ab = function(str) {
-      var buf = new ArrayBuffer(str.length); // 2 bytes for each char
-      var bufView = new Uint8Array(buf);
-      for (var i=0, strLen=str.length; i < strLen; i++) {
-        bufView[i] = str.charCodeAt(i);
-      }
-      return bufView;
+        if (!str) { throw new Error("No str given") }
+
+        var buf = new ArrayBuffer(str.length); // 2 bytes for each char
+        var bufView = new Uint8Array(buf);
+        for (var i=0, strLen=str.length; i < strLen; i++) {
+            bufView[i] = str.charCodeAt(i);
+        }
+        return bufView;
     }
 
     this.get_file_content = function(file) {
         return new Promise((resolve, reject) => {
+            if (!file) { reject("No file given"); return; }
+
             var reader = new FileReader();
             reader.onload = function() {
                 resolve(this.result)
@@ -615,6 +665,10 @@ exports.init = function(debug, debugHost) {
     // iv for aes256, optional for RSA
     this.store_user_key_for_record = function(userEmail, recordID, encryptedKey, iv) {
         return new Promise((resolve, reject) => {
+            if (!userEmail) { reject("No userEmail given"); return; }
+            if (!recordID) { reject("No recordID given"); return; }
+            if (!encryptedKey) { reject("No encryptedKey given"); return; }
+
             const url =  this.host + "/set-key-for-record"
             let form = new_Form()
             form.append('userForKey', userEmail)
@@ -635,7 +689,7 @@ exports.init = function(debug, debugHost) {
                 };
                 xhr.send(form);
             } else {
-                form.submit(url, function(err, res) {
+                form.submit(url, function(err/*, res*/) {
                     if (err) {
                         reject(err)
                         return
@@ -648,6 +702,12 @@ exports.init = function(debug, debugHost) {
 
     this.upload_file_for_record = function(file, fileContent, recordID, password, projectID, handleProgress) {
         return new Promise((resolve, reject) => {
+            if (!file) { reject("No file given"); return; }
+            if (!fileContent) { reject("No fileContent given"); return; }
+            if (!recordID) { reject("No recordID given"); return; }
+            if (!password) { reject("No password given"); return; }
+
+
             let cipherInfo = this.encrypt_string(fileContent)
             
             let encryptedKey = this.encrypt_string_with_password(
@@ -716,12 +776,15 @@ exports.init = function(debug, debugHost) {
 
     this.upload_file = function(file, password, projectID, handleProgress) {
         return new Promise((resolve, reject) => {
+            if (!file) { reject("No file given"); return; }
+            if (!password) { reject("No password given"); return; }
+
             this.get_file_content(file)
             .then((content) => {
                 this.create_data_management(content, file.recordName || file.name, "editable", password, "")
                 .then((recordID) => {
                     this.upload_file_for_record(file, content, recordID, password, projectID, handleProgress)
-                    .then(done => resolve(recordID))
+                    .then(() => resolve(recordID))
                     .catch(err => reject(err))
                 })
                 .catch(err => reject(err))
@@ -732,13 +795,17 @@ exports.init = function(debug, debugHost) {
 
     this.upload_file_data = function(fileContent, fileName, password, projectID, handleProgress) {
         return new Promise((resolve, reject) => {
+            if (!password) { reject("No password given"); return; }
+            if (!fileContent) { reject("No fileContent given"); return; }
+            if (!fileName) { reject("No fileName given"); return; }
+
             let file = {name: fileName, type: "text/plain"}
             projectID = projectID || ''
 
             this.create_data_management(fileContent, fileName, "editable", password, "")
             .then((recordID) => {
                 this.upload_file_for_record(file, fileContent, recordID, password, projectID, handleProgress)
-                .then(done => resolve(recordID))
+                .then(() => resolve(recordID))
                 .catch(err => reject(err))
             })
             .catch(err => reject(err))
@@ -748,6 +815,9 @@ exports.init = function(debug, debugHost) {
     this.download_file_data = function(recordID, password, version) {
         version = version || 0
         return new Promise((resolve, reject) => {
+            if (!recordID) { reject("No recordID given"); return; }
+            if (!password) { reject("No password given"); return; }
+
             this.download_file_for_recordID(recordID, password, version, true)
             .then(file => resolve(file.data))
             .catch(err => reject(err))
@@ -756,6 +826,8 @@ exports.init = function(debug, debugHost) {
 
     this.search_records_by_hash = function(hash) {
         return new Promise((resolve, reject) => {
+            if (!hash) { reject("No hash given"); return; }
+
             let accessURL = this.host + "/records-for-hash?hash=" + hash
             accessURL += "&authToken=" + this.authToken
 
@@ -780,6 +852,8 @@ exports.init = function(debug, debugHost) {
 
     this.search_records_by_query = function(query) {
         return new Promise((resolve, reject) => {
+            if (!query) { reject("No query given"); return; }
+
             let accessURL = this.host + '/search-user-data-contracts'
             accessURL += "?authToken=" + this.authToken
 
@@ -800,6 +874,8 @@ exports.init = function(debug, debugHost) {
 
     this.get_info_for_recordID = function(recordID) {
         return new Promise((resolve, reject) => {
+            if (!recordID) { reject("No recordID given"); return; }
+
             let accessURL = this.host + "/record-for-user?recordID=" + recordID 
             accessURL += "&authToken=" + this.authToken
 
@@ -819,6 +895,8 @@ exports.init = function(debug, debugHost) {
     }
 
     this.build_full_URL = function(remoteURL) {
+        if (!remoteURL) { throw new Error("No remoteURL given") }
+
         const S3_BUCKET = this.host === "https://www.immuto.io" ? "immuto-prod" : "immuto-sandbox"
 
         if (remoteURL.includes(S3_BUCKET)) return remoteURL
@@ -827,6 +905,9 @@ exports.init = function(debug, debugHost) {
     }
 
     this.decrypt_fileKey_symmetric = function(encryptedKeyInfo, password) {
+        if (!encryptedKeyInfo) { throw new Error("No encryptedKeyInfo given") }
+        if (!password) { throw new Error("No password given") }
+
         let decryptKey = this.generate_key_from_password(password)  
         let encryptedKey = encryptedKeyInfo.encryptedKey
         let iv = this.string_to_iv(encryptedKeyInfo.iv)
@@ -843,77 +924,37 @@ exports.init = function(debug, debugHost) {
         }
     }
 
-    this.decrypt_fileKey_asymmetric = function(encryptedKeyInfo, password) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const encryptedKey = encryptedKeyInfo.encryptedKey
-                const userInfo = await this.get_user_info()
-                const privateKey = this.decrypt_RSA_private_key(userInfo.privateKey, userInfo.rsaIv, password)
-                let fileDecryptInfo = JSON.parse(this.decrypt_with_privateKey(encryptedKey, privateKey))
-                fileDecryptInfo.iv = this.string_to_iv(fileDecryptInfo.iv)
-                resolve(fileDecryptInfo)
-            } catch(err) {
-                reject(err)
-            }
+    this.decrypt_fileKey_asymmetric = async function(encryptedKeyInfo, password) {   
+        if (!encryptedKeyInfo) { throw new Error("No encryptedKeyInfo given") }
+        if (!password) { throw new Error("No password given") }
 
-        })
+        const encryptedKey = encryptedKeyInfo.encryptedKey
+        const userInfo = await this.get_user_info()
+        const privateKey = this.decrypt_RSA_private_key(userInfo.privateKey, userInfo.rsaIv, password)
+        let fileDecryptInfo = JSON.parse(this.decrypt_with_privateKey(encryptedKey, privateKey))
+        fileDecryptInfo.iv = this.string_to_iv(fileDecryptInfo.iv)
+        return fileDecryptInfo
     }
 
     this.key_to_string = function(keyInfo) {
+        if (!keyInfo) { throw new Error("No keyInfo given") }
+        if (!keyInfo.iv) { throw new Error("Given keyInfo has no iv field") }
+        
         keyInfo.iv = this.iv_to_string(keyInfo.iv)
         return JSON.stringify(keyInfo)
     }
 
-    this.download_file_for_record = function(recordInfo, password, version, asPlaintext) {
-        return new Promise(async (resolve, reject) => {
-            if (!recordInfo.files) {
-                reject("No files exist for record")
-            }
-            if (version < 0) {
-                reject("Version number must be non-negative integer")
-            }
-            if (version >= recordInfo.files.length) {
-                reject(`Invalid version number ${version} for record with ${recordInfo.files.length} versions`)
-            }
-            if (version !== 0)
-                version = version || recordInfo.files.length - 1 // default to recent
-            const fileInfo = recordInfo.files[version]
-            let fileURL = fileInfo.remoteURL
-
-            let encryptedKeyInfo = recordInfo[this.email.toLowerCase().replace(/\./g, " ")]
-
-            if (!encryptedKeyInfo) {
-                reject(`User ${this.email} does not have key for decrypting file`); return;
-            }
-
-            let fileDecryptInfo = {}
-            if (encryptedKeyInfo.iv) { // for symmetric, personal key, non-RSA
-                fileDecryptInfo = this.decrypt_fileKey_symmetric(encryptedKeyInfo, password) 
-            } else { // for RSA
-                try {
-                    fileDecryptInfo = await this.decrypt_fileKey_asymmetric(encryptedKeyInfo, password) 
-                } catch(err) {
-                    reject(err)
-                }
-            }
-            let fileDKey = fileDecryptInfo.key
-            let fileDiv = fileDecryptInfo.iv
+    this.get_encrypted_file = function(fileURL) {
+        return new Promise((resolve, reject) => {
+            if (!fileURL) { reject("No fileURL given"); return; }
 
             let http = new_HTTP();
             http.open("GET", this.build_full_URL(fileURL), true);
             http.responseType = "arraybuffer"
             http.onreadystatechange = () => {
                 if (http.readyState === 4 && http.status === 200) {
-                    let encryptedData = new Uint8Array(http.response)
-                    let plaintext = this.decrypt_string(encryptedData, fileDKey, fileDiv, 'base64') // this can be used for auto-verification (before splitting)
-
-                    let file = {
-                        type: fileInfo.type,
-                        name: fileInfo.name,
-                        data: asPlaintext ? plaintext : this.str2ab(plaintext)
-                    }
-
-                    resolve(file)
+                    resolve(new Uint8Array(http.response))
+                    
                 } else if (http.readyState === 4) {
                     reject(http.responseText)
                 }
@@ -922,17 +963,52 @@ exports.init = function(debug, debugHost) {
         })
     }
 
-    this.download_file_for_recordID = function(recordID, password, version, asPlaintext) {
-        return new Promise((resolve, reject) => {
-            if (!password) { reject("NO PASSWORD PROVIDED"); return; }
-            this.get_info_for_recordID(recordID)
-            .then(recordInfo => {
-                this.download_file_for_record(recordInfo, password, version, asPlaintext)
-                .then(file => resolve(file))
-                .catch(err => reject(err))
-            })
-            .catch(err => reject(err))
-        })
+    this.download_file_for_record = async function(recordInfo, password, version, asPlaintext) {
+        if (!recordInfo) { throw new Error("No recordInfo given"); }
+        if (!recordInfo.files) { throw new Error("No files exist for record") }
+        if (!password) { throw new Error("No password given"); }
+        if (version < 0) { throw new Error("Version number must be non-negative integer") }
+        if (version >= recordInfo.files.length) {
+            throw new Error(`Invalid version number ${version} for record with ${recordInfo.files.length} versions`)
+        }
+        if (version !== 0)
+            version = version || recordInfo.files.length - 1 // default to recent
+        const fileInfo = recordInfo.files[version]
+        let fileURL = fileInfo.remoteURL
+
+        let encryptedKeyInfo = recordInfo[this.email.toLowerCase().replace(/\./g, " ")]
+
+        if (!encryptedKeyInfo) {
+            throw new Error(`User ${this.email} does not have key for decrypting file`);
+        }
+
+        let fileDecryptInfo = {}
+        if (encryptedKeyInfo.iv) { // for symmetric, personal key, non-RSA
+            fileDecryptInfo = this.decrypt_fileKey_symmetric(encryptedKeyInfo, password) 
+        } else { // for RSA
+            fileDecryptInfo = await this.decrypt_fileKey_asymmetric(encryptedKeyInfo, password) 
+        }
+        let fileDKey = fileDecryptInfo.key
+        let fileDiv = fileDecryptInfo.iv
+
+        let encryptedData = await this.get_encrypted_file(fileURL)
+        let plaintext = this.decrypt_string(encryptedData, fileDKey, fileDiv, 'base64') // this can be used for auto-verification (before splitting)
+
+        let file = {
+            type: fileInfo.type,
+            name: fileInfo.name,
+            data: asPlaintext ? plaintext : this.str2ab(plaintext)
+        }
+        return file
+    }
+
+    this.download_file_for_recordID = async function(recordID, password, version, asPlaintext) {
+        if (!recordID) { throw new Error("recordID is required"); }
+        if (!password) { throw new Error("password is required"); }
+
+        let recordInfo = await this.get_info_for_recordID(recordID)
+        let file = await this.download_file_for_record(recordInfo, password, version, asPlaintext)
+        return file
     }
 
     this.get_user_info = function() {
@@ -955,6 +1031,9 @@ exports.init = function(debug, debugHost) {
 
     this.share_record_access = function(recordID, shareEmail) {
         return new Promise((resolve, reject) => {
+            if (!recordID) { reject("No recordID given"); return; }
+            if (!shareEmail) { reject("No shareEmail given"); return; }
+
             var xhr = new_HTTP();
 
             xhr.open("POST", this.host + '/share-record', true);
@@ -974,40 +1053,40 @@ exports.init = function(debug, debugHost) {
         })
     }
 
-    this.share_record = function(recordID, shareEmail, password) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                await this.share_record_access(recordID, shareEmail)
-                let recordInfo = await this.get_info_for_recordID(recordID)
-                let publicKey = await this.get_public_key(shareEmail)
+    this.share_record = async function(recordID, shareEmail, password) {
+        if (!recordID) throw new Error("RecordID is required")
+        if (!shareEmail) throw new Error("shareEmail is required")
+        if (!password) throw new Error("passowrd is required")
+        
+        await this.share_record_access(recordID, shareEmail)
+        let recordInfo = await this.get_info_for_recordID(recordID)
+        let publicKey = await this.get_public_key(shareEmail)
 
-                if (recordInfo.creator.toLowerCase() !== this.email.toLowerCase()) {
-                    reject(`Only the record creator ${recordInfo.creator} may share file content`)
-                    return
-                }
-                if (!recordInfo.files || (recordInfo.files && recordInfo.files.length === 0)) {
-                    reject("No files exist for record"); return;
-                }
-                let keyField = this.email.toLowerCase().replace(/\./g, " ")
-                if (!recordInfo[keyField]) {
-                    reject(`No key set for user ${this.email}`); return;
-                }
+        if (recordInfo.creator.toLowerCase() !== this.email.toLowerCase()) {
+            throw new Error(`Only the record creator ${recordInfo.creator} may share file content`)
+        }
+        if (!recordInfo.files || (recordInfo.files && recordInfo.files.length === 0)) {
+            throw new Error("No files exist for record");
+        }
+        let keyField = this.email.toLowerCase().replace(/\./g, " ")
+        if (!recordInfo[keyField]) {
+            throw new Error(`No key set for user ${this.email}`);
+        }
 
-                const keyInfo = this.decrypt_fileKey_symmetric(recordInfo[keyField], password)
-                const keyString = this.key_to_string(keyInfo)
-                const encryptedKey = this.encrypt_with_publicKey(keyString, publicKey)
+        const keyInfo = this.decrypt_fileKey_symmetric(recordInfo[keyField], password)
+        const keyString = this.key_to_string(keyInfo)
+        const encryptedKey = this.encrypt_with_publicKey(keyString, publicKey)
 
-                this.store_user_key_for_record(shareEmail, recordID, encryptedKey)
-                .catch(err => reject(err))
-                .finally(() => resolve())
-            } catch(err) {
-                reject(err)
-            }
-        })
+        await this.store_user_key_for_record(shareEmail, recordID, encryptedKey)
     }
 
     this.create_data_management = function(content, name, type, password, desc) {
         return new Promise((resolve, reject) => {
+            if (!content) { reject("No content given"); return; }
+            if (!name) { reject("No name given"); return; }
+            if (!type) { reject("No type given"); return; }
+            if (!password) { reject("No password given"); return; }
+
 
             // Good practice to keep account encrypted unless in use (signing transaction)
             let account = undefined;
@@ -1052,6 +1131,10 @@ exports.init = function(debug, debugHost) {
 
     this.update_data_management = function(recordID, newContent, password) {
         return new Promise((resolve, reject) => {
+            if (!recordID) { reject("No recordID given"); return; }
+            if (!newContent) { reject("No newContent given"); return; }
+            if (!password) { reject("No password given"); return; }
+
             if (!this.utils.parse_record_ID(recordID)) {
                 reject("Invalid recordID"); return; 
             }
@@ -1097,6 +1180,9 @@ exports.init = function(debug, debugHost) {
 
     this.get_data_management_history = function(recordID, type) {
         return new Promise((resolve, reject) => {
+            if (!recordID) { reject("No recordID given"); return; }
+            if (!type) { reject("No type given"); return; }
+
             let recordInfo = this.utils.parse_record_ID(recordID)
 
             if (!recordInfo) {
@@ -1138,6 +1224,10 @@ exports.init = function(debug, debugHost) {
 
     this.verify_data_management = function (recordID, type, verificationContent) {
         return new Promise((resolve, reject) => {
+            if (!recordID) { reject("No recordID given"); return; }
+            if (!type) { reject("No type given"); return; }
+            if (!verificationContent) { reject("No verificationContent given"); return; }
+
             let recordInfo = this.utils.parse_record_ID(recordID)
             if (!recordInfo) {
                 reject("Invalid recordID"); return; 
@@ -1166,298 +1256,6 @@ exports.init = function(debug, debugHost) {
         })
     }
 
-    this.create_digital_agreement = function(content, name, type, password, signers, desc) {
-        return new Promise((resolve, reject) => {
-            let account = undefined;
-            try {
-                account = this.web3.eth.accounts.decrypt(
-                    this.encryptedKey, 
-                    password + this.salt
-                );
-            } catch(err) {
-                if (!this.email) {
-                    reject("User not yet authenticated.");
-                } else {
-                    reject("User password invalid")
-                }
-                return;
-            }
-
-            let hashedData = this.web3.utils.sha3(content)
-            let signature = account.sign(hashedData)
-            signature.message = "" // Unnecessary for request
-
-            var xhr = new_HTTP();
-            let sendstring = ""
-
-            xhr.open("POST", this.host + "/submit-new-agreement-upload", true);
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-            xhr.onreadystatechange = () => {
-                if (xhr.readyState === 4 && xhr.status === 200) {
-                    resolve(xhr.responseText)
-                } else if (xhr.readyState === 4) {
-                    reject(xhr.responseText)
-                }
-            };
-            sendstring += 'filename=' + name
-            sendstring += '&filedesc=' + desc
-            sendstring += '&signature=' + JSON.stringify(signature)
-            sendstring += '&type=' + type
-            if (type === 'multisig')
-                    sendstring += '&signers=' + JSON.stringify(signers)
-            sendstring += '&fileHash=' + hashedData
-            sendstring += '&authToken=' + this.authToken
-
-            xhr.send(sendstring);
-        })
-    }
-
-    this.sign_digital_agreement = function(recordID, password) {
-        return new Promise((resolve, reject) => {
-            if (!this.utils.parse_record_ID(recordID)) {
-                reject("Invalid recordID"); return; 
-            }
-
-            let account = undefined;
-            try {
-                account = this.web3.eth.accounts.decrypt(
-                    this.encryptedKey, 
-                    password + this.salt
-                );
-            } catch(err) {
-                return err;
-            }
-
-            var http = new_HTTP()
-
-            let sendstring = "contractAddr=" + recordID 
-            sendstring += "&authToken=" + this.authToken 
-
-            http.open("POST", this.host + "/get-contract-info", true)
-            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-            http.onreadystatechange = () => {
-                if (http.readyState === 4 && http.status === 200) {
-                    let response = JSON.parse(http.responseText)
-
-                    let currentHash =  response.hashes.pop()
-                    let signature = account.sign(currentHash)
-                    signature.message = "" // Unnecessary for request
-
-                    var xhr = new_HTTP();
-                    sendstring = ""
-
-                    xhr.open("POST", this.host + "/sign-agreement", true);
-                    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-                    xhr.onreadystatechange = () => {
-                        if (xhr.readyState === 4 && xhr.status === 204) {
-                            resolve()
-                        } else if (xhr.readyState === 4) {
-                            reject(xhr.responseText)
-                        }
-                    };
-
-                    sendstring += 'contractAddr=' + recordID
-                    sendstring += '&signature=' + JSON.stringify(signature)
-                    sendstring += '&authToken=' + this.authToken
-                    xhr.send(sendstring);
-                } else if (http.readyState === 4) {
-                    reject(http.responseText)
-                }
-            }
-            http.send(sendstring) 
-
-            
-        })
-
-    }
-
-    this.update_digital_agreement = function(recordID, newContent, password) {
-        return new Promise((resolve, reject) => {
-            if (!this.utils.parse_record_ID(recordID)) {
-                reject("Invalid recordID"); return; 
-            }
-
-            let account = undefined;
-            try {
-                account = this.web3.eth.accounts.decrypt(
-                    this.encryptedKey, 
-                    password + this.salt
-                );
-            } catch(err) {
-                return err;
-            }
-            password = undefined
-
-            let dataHash = this.web3.utils.sha3(newContent)
-            let signature = account.sign(dataHash)
-            signature.message = "" // Unnecessary for request
-
-            var xhr = new_HTTP();
-            let sendstring = ""
-
-            xhr.open("POST", this.host + "/update-agreement", true);
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-            xhr.onreadystatechange = () => {
-                if (xhr.readyState === 4 && xhr.status === 204) {
-                    resolve()
-                } else if (xhr.readyState === 4) {
-                    reject(xhr.responseText)
-                }
-            };
-            sendstring += 'contractAddr=' + recordID
-            sendstring += '&signature=' + JSON.stringify(signature)
-            sendstring += '&docHash=' + dataHash
-            sendstring += '&authToken=' + this.authToken
-
-            xhr.send(sendstring);
-        })
-
-    }
-
-    this.verify_digital_agreement = function(recordID, type, verificationContent) {
-        return new Promise((resolve, reject) => {
-            if (!this.utils.parse_record_ID(recordID)) {
-                reject("Invalid recordID"); return; 
-            }
-
-            var http = new_HTTP()
-
-            let sendstring = "contractAddr=" + recordID 
-            sendstring += "&authToken=" + this.authToken 
-
-            http.open("POST", this.host + "/get-contract-info", true)
-            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-            http.onreadystatechange = () => {
-                if (http.readyState === 4 && http.status === 200) {
-                    let response = JSON.parse(http.responseText)
-                    let hashes =  response.hashes
-                    let hash = this.web3.utils.sha3(verificationContent)
-                    let emails = response.signers
-                    if (emails) {
-                        this.get_digital_agreement_history(recordID, type).then((history) => {
-                            this.utils.emails_to_addresses(JSON.stringify(emails)).then((addresses) => {
-                                let validSignatures = []
-                                addresses.push(response.userAddr)
-                                for (let i = 0; i < addresses.length; i++) {
-                                    addresses[i] = addresses[i].toLowerCase()
-                                }
-                                let addressLookup = new Set(addresses)
-                                let currentVersion = 0
-
-                                for (let i = 0; i < history.length; i++) {
-                                    let sig = history[i].signature
-
-                                    //causes extra if original hash correct, rest not
-                                    for (let j = currentVersion; j < hashes.length; j++) {
-                                        if (j > i) break;
-                                        if (hashes[j].toLowerCase() === hash.toLowerCase()) {
-                                            let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
-                                            if (addressLookup.has(address.toLowerCase())) {
-                                                validSignatures.push({
-                                                    version: j,
-                                                    timestamp: history[i].timestamp,
-                                                    hash: hash,
-                                                    signer: address,
-                                                    email: history[i]
-                                                })
-                                                break;
-                                            } else {
-                                                currentVersion ++
-                                            }
-                                        }
-                                    }
-                                }
-                                if (validSignatures.length > 0) {
-                                    this.utils.addresses_to_emails(validSignatures).then((validSignatures) => {
-                                        resolve(validSignatures)
-                                    }).catch((err) => {
-                                        reject(err)
-                                    })
-                                }
-                                else {
-                                    resolve(false)
-                                }
-                            }).catch((err) => {
-                                reject(err)
-                            })
-                        }).catch((err) => {
-                            reject(err)
-                        })
-                    } else {
-                        this.get_digital_agreement_history(recordID, type).then((history) => {
-                            let sig = history[0].signature
-
-                            let address = this.utils.ecRecover(hash, sig.v, sig.r, sig.s)
-                            this.utils.addresses_to_emails([{signer: address}]).then((emails) => {
-                                if (address.toLowerCase() === response.userAddr.toLowerCase()) {
-                                    resolve([{
-                                        version: 0,
-                                        timestamp: history[0].timestamp,
-                                        hash: hash,
-                                        signer: address,
-                                        email: emails[0].email
-                                    }])
-                                } else {
-                                    resolve(false)
-                                }
-                            }).catch((err) => {
-                                reject(err)
-                            })
-                        }).catch((err) => {
-                            reject(err)
-                        })
-                    }
-
-                    
-                } else if (http.readyState === 4) {
-                    reject(http.responseText)
-                }
-            }
-            http.send(sendstring) 
-        })
-    }
-
-    this.get_digital_agreement_history = function(recordID, type) {
-        return new Promise((resolve, reject) => {
-            if (!this.utils.parse_record_ID(recordID)) {
-                reject("Invalid recordID"); return; 
-            }
-
-            let contract = undefined
-            if (type === "single_sign") {
-                contract = new this.web3.eth.Contract(SINGLE_SIGN_AGREEMENT_ABI, recordID);
-            } else if (type === "multisig") {
-                contract = new this.web3.eth.Contract(MULTISIG_AGREEMENT_ABI, recordID);
-            } else {
-                reject("Invalid contract type: " + type)
-                return
-            }
-            
-            contract.getPastEvents('Signed', {
-                fromBlock: 0,
-                toBlock: 'latest'
-            })
-            .then((events) => {
-                let history = []
-                for (let i = 0; i < events.length; i++) {
-                    let event = events[i]
-
-                    let v = event.returnValues.v
-                    let r = event.returnValues.r
-                    let s = event.returnValues.s
-                    let signature = {v: v, r: r, s: s}
-
-                    history.push({
-                        timestamp: this.utils.convert_unix_time(event.returnValues.timestamp),
-                        signature: signature
-                    })
-                }
-                resolve(history)
-            }).catch((err) => {
-                reject(err)
-            })
-        })
-    }
     return this
 }
 
@@ -1580,126 +1378,6 @@ const EDITABLE_DATA_STORAGE_ABI = [
                         }
                 ],
                 "name": "Updated",
-                "type": "event"
-        }
-]
-
-const SINGLE_SIGN_AGREEMENT_ABI = [
-        {
-                "inputs": [
-                        {
-                                "name": "v",
-                                "type": "uint8"
-                        },
-                        {
-                                "name": "r",
-                                "type": "bytes32"
-                        },
-                        {
-                                "name": "s",
-                                "type": "bytes32"
-                        }
-                ],
-                "payable": false,
-                "stateMutability": "nonpayable",
-                "type": "constructor"
-        },
-        {
-                "anonymous": false,
-                "inputs": [
-                        {
-                                "indexed": false,
-                                "name": "timestamp",
-                                "type": "uint256"
-                        },
-                        {
-                                "indexed": false,
-                                "name": "v",
-                                "type": "uint8"
-                        },
-                        {
-                                "indexed": false,
-                                "name": "r",
-                                "type": "bytes32"
-                        },
-                        {
-                                "indexed": false,
-                                "name": "s",
-                                "type": "bytes32"
-                        }
-                ],
-                "name": "Signed",
-                "type": "event"
-        }
-]
-
-const MULTISIG_AGREEMENT_ABI = [
-        {
-                "constant": false,
-                "inputs": [
-                        {
-                                "name": "v",
-                                "type": "uint8"
-                        },
-                        {
-                                "name": "r",
-                                "type": "bytes32"
-                        },
-                        {
-                                "name": "s",
-                                "type": "bytes32"
-                        }
-                ],
-                "name": "Sign",
-                "outputs": [],
-                "payable": false,
-                "stateMutability": "nonpayable",
-                "type": "function"
-        },
-        {
-                "inputs": [
-                        {
-                                "name": "v",
-                                "type": "uint8"
-                        },
-                        {
-                                "name": "r",
-                                "type": "bytes32"
-                        },
-                        {
-                                "name": "s",
-                                "type": "bytes32"
-                        }
-                ],
-                "payable": false,
-                "stateMutability": "nonpayable",
-                "type": "constructor"
-        },
-        {
-                "anonymous": false,
-                "inputs": [
-                        {
-                                "indexed": false,
-                                "name": "timestamp",
-                                "type": "uint256"
-                        },
-                        {
-                                "indexed": false,
-                                "name": "v",
-                                "type": "uint8"
-                        },
-                        {
-                                "indexed": false,
-                                "name": "r",
-                                "type": "bytes32"
-                        },
-                        {
-                                "indexed": false,
-                                "name": "s",
-                                "type": "bytes32"
-                        }
-                ],
-                "name": "Signed",
                 "type": "event"
         }
 ]

@@ -9,7 +9,7 @@ if (!password) {
     alert("No password set")
 }
 
-const IMMUTO_URL = "http://localhost:8000"
+const IMMUTO_URL = "http://localhost:8005"
 let im = Immuto.init(true, IMMUTO_URL)
 
 if (email && password) run_tests(email, password)
@@ -18,20 +18,20 @@ async function run_tests(email, password) {
     try {       
         await im.deauthenticate() // in case auth cached by browser
         await im.authenticate(email, password) 
+        
         // await test_org_member_registration()
-        await im.deauthenticate() // de-authenticate org-member
-        await im.authenticate(email, password) // re-authenticate org-admin
+        // await im.deauthenticate() // de-authenticate org-member
+        // await im.authenticate(email, password) // re-authenticate org-admin
 
         await data_management_tests()
         await test_encryption()
         await test_file_upload()
-
         await test_sharing()
-        
-        await test_example_usage()
-        console.log("All tests passed!")
+        await test_example_usage() 
 
         // await digital_agreement_tests() // deprecated, for now
+
+        console.log("All tests passed!")
     } catch (err) {
         console.error("Error during tests:")
         console.error(err)
@@ -65,6 +65,7 @@ async function data_management_tests() {
         if (!verified) {
             throw new Error("Failed verification of digital agreement")
         }
+        console.log("Passed basic data management test")
     } catch(err) {
         throw err
     }
@@ -74,7 +75,7 @@ async function data_management_tests() {
         let verified = await im.verify_data_management(recordID, type, content)
 
         if (!verified) {
-            throw new Error("Failed verification of digital agreement")
+            throw new Error("Failed verification of editable record")
         }
 
         let updatedContent = "NEW_CONTENT"
@@ -82,8 +83,9 @@ async function data_management_tests() {
         verified = await im.verify_data_management(recordID, type, updatedContent)
 
         if (!verified) {
-            throw new Error("Failed verification of digital agreement")
+            throw new Error("Failed verification of editable record after update")
         }
+        console.log("Passed editable data management test")
     } catch(err) {
         throw err
     }
@@ -154,6 +156,7 @@ async function test_encryption(attempts) {
             throw new Error("Failed to decrypt correct plaintext (using convenience passgen key)")
         }
     }
+    console.log("Passed encryption tests")
 }
 
 async function test_file_upload() {
@@ -164,6 +167,7 @@ async function test_file_upload() {
         if (fileContent !== downloaded.data) {
             throw new Error("Uploaded content does not match downloaded content")
         }
+        console.log("Passed file upload test")
     } catch(err) {
         throw err
     }
@@ -177,16 +181,24 @@ async function test_sharing() {
         if (fileContent !== data) {
             throw new Error("Uploaded content does not match downloaded content")
         }
+        verified = await im.verify_data_management(recordID, 'editable', data)
+        if (!verified) {
+            throw new Error("Failed verification")
+        }
+
         await im.share_record(recordID, "test@test.com", password)
-        console.log("Done sharing with test@test.com")
 
         await im.deauthenticate()
         await im.authenticate("test@test.com", "testpassword")
-        console.log("Authenticated as test@test.com")
         data = await im.download_file_data(recordID, "testpassword")
         if (fileContent !== data) {
             throw new Error("Uploaded content does not match downloaded content for shared recipient")
         }
+        verified = await im.verify_data_management(recordID, 'editable', data)
+        if (!verified) {
+            throw new Error("Failed verification")
+        }
+        console.log("Passed record sharing test")
     } catch(err) {
         throw err
     }
@@ -206,8 +218,8 @@ async function test_example_usage() {
         const fileName = "Test Name"
         const recordID = await im.upload_file_data(fileContent, fileName, pass1)
         let data = await im.download_file_data(recordID, pass1)
-        if (fileContent === data) {
-            console.log("Successfully downloaded personal record")
+        if (fileContent !== data) {
+            throw new Error("Failed to downloaded personal record")
         }
 
         await im.share_record(recordID, email2, pass1)
@@ -215,10 +227,10 @@ async function test_example_usage() {
         await im.authenticate(email2, pass2) // authenticate with user 2
 
         data = await im.download_file_data(recordID, pass2)
-        if (fileContent === data) {
-            console.log("Successfully downloaded shared record")
+        if (fileContent !== data) {
+            console.log("Failed to download shared record")
         }
-
+        console.log("Passed example usage test")
     } catch(err) {
         console.error(err)
     }

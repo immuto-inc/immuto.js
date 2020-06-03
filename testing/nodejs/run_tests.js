@@ -2,7 +2,7 @@ let Immuto = require("../../nodejs/immuto.js")
 let crypto = require('crypto')
 let fs = require('fs')
 
-const IMMUTO_URL = "http://localhost:8000"
+const IMMUTO_URL = "http://localhost:8005"
 let im = Immuto.init(true, IMMUTO_URL)
 
 let email = process.env.EMAIL
