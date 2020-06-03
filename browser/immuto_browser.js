@@ -23,7 +23,7 @@ function new_Form() { // for sending files with XMLHttpRequest
 }
 
 exports.init = function(debug, debugHost) {    
-    this.host = "https://www.immuto.io"
+    this.host = "https://api.immuto.io"
     if (debug === true) {
         if (debugHost)
             this.host = debugHost
@@ -32,7 +32,7 @@ exports.init = function(debug, debugHost) {
     }
 
     try {
-        this.web3 = new Web3("https://www.immuto.io") // Dummy provider because required on init now
+        this.web3 = new Web3("https://api.immuto.io") // Dummy provider because required on init now
     } catch(err) {
         console.error(err)
         throw new Error("Web3js is a required dependency of the Immuto API. Make sure it is included wherever immuto.js is present.")
@@ -48,11 +48,11 @@ exports.init = function(debug, debugHost) {
 
     if (IN_BROWSER) {
         let ls = window.localStorage // preserve session across pages
-        if (ls.authToken && ls.email && ls.salt && ls.encryptedKey) {
-            this.salt = ls.salt
-            this.encryptedKey = ls.encryptedKey
-            this.authToken = ls.authToken
-            this.email = ls.email.toLowerCase()
+        if (ls.IMMUTO_authToken && ls.IMMUTO_email && ls.IMMUTO_salt && ls.IMMUTO_encryptedKey) {
+            this.salt = ls.IMMUTO_salt
+            this.encryptedKey = ls.IMMUTO_encryptedKey
+            this.authToken = ls.IMMUTO_authToken
+            this.email = ls.IMMUTO_email.toLowerCase()
         }
     }
 
@@ -143,7 +143,6 @@ exports.init = function(debug, debugHost) {
             return this.web3.utils.toChecksumAddress(address)
         },
         parse_record_ID: (recordID) => {
-            
             if (!recordID) return false;
             if ("string" !== typeof recordID) return false;
 
@@ -346,10 +345,10 @@ exports.init = function(debug, debugHost) {
                     http2.onreadystatechange = () => {
                         if (http2.readyState === 4 && (http2.status === 204 || http2.status === 200)) {
                             if (IN_BROWSER) {
-                                window.localStorage.authToken = this.authToken
-                                window.localStorage.email = email
-                                window.localStorage.salt = this.salt
-                                window.localStorage.encryptedKey = this.encryptedKey
+                                window.localStorage.IMMUTO_authToken = this.authToken
+                                window.localStorage.IMMUTO_email = email
+                                window.localStorage.IMMUTO_salt = this.salt
+                                window.localStorage.IMMUTO_encryptedKey = this.encryptedKey
                             }
                             this.email = email
 
@@ -389,13 +388,12 @@ exports.init = function(debug, debugHost) {
 
             if (IN_BROWSER) {
                 if (!this.authToken) {
-                    sendstring = `authToken=${window.localStorage.authToken}`
+                    sendstring = `authToken=${window.localStorage.IMMUTO_authToken}`
                 }
-                window.localStorage.authToken = ""
-                window.localStorage.email = ""
-                window.localStorage.salt = ""
-                window.localStorage.encryptedKey = ""
-                window.localStorage.password = "" // in case this is set elsewhere
+                window.localStorage.IMMUTO_authToken = ""
+                window.localStorage.IMMUTO_email = ""
+                window.localStorage.IMMUTO_salt = ""
+                window.localStorage.IMMUTO_encryptedKey = ""
             }
             this.authToken = ""
             this.email = ""
@@ -502,7 +500,7 @@ exports.init = function(debug, debugHost) {
                 };
                 xhr.send(form)
             } else {
-                form.submit(url, function(err, res) {
+                form.submit(url, function(err/*, res*/) {
                     if (err) {
                         reject(err)
                         return
@@ -633,7 +631,7 @@ exports.init = function(debug, debugHost) {
                 };
                 xhr.send(form);
             } else {
-                form.submit(url, function(err, res) {
+                form.submit(url, function(err/*, res*/) {
                     if (err) {
                         reject(err)
                         return
@@ -719,7 +717,7 @@ exports.init = function(debug, debugHost) {
                 this.create_data_management(content, file.recordName || file.name, "editable", password, "")
                 .then((recordID) => {
                     this.upload_file_for_record(file, content, recordID, password, projectID, handleProgress)
-                    .then(done => resolve(recordID))
+                    .then(() => resolve(recordID))
                     .catch(err => reject(err))
                 })
                 .catch(err => reject(err))
@@ -736,7 +734,7 @@ exports.init = function(debug, debugHost) {
             this.create_data_management(fileContent, fileName, "editable", password, "")
             .then((recordID) => {
                 this.upload_file_for_record(file, fileContent, recordID, password, projectID, handleProgress)
-                .then(done => resolve(recordID))
+                .then(() => resolve(recordID))
                 .catch(err => reject(err))
             })
             .catch(err => reject(err))
@@ -841,20 +839,13 @@ exports.init = function(debug, debugHost) {
         }
     }
 
-    this.decrypt_fileKey_asymmetric = function(encryptedKeyInfo, password) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const encryptedKey = encryptedKeyInfo.encryptedKey
-                const userInfo = await this.get_user_info()
-                const privateKey = this.decrypt_RSA_private_key(userInfo.privateKey, userInfo.rsaIv, password)
-                let fileDecryptInfo = JSON.parse(this.decrypt_with_privateKey(encryptedKey, privateKey))
-                fileDecryptInfo.iv = this.string_to_iv(fileDecryptInfo.iv)
-                resolve(fileDecryptInfo)
-            } catch(err) {
-                reject(err)
-            }
-
-        })
+    this.decrypt_fileKey_asymmetric = async function(encryptedKeyInfo, password) {   
+        const encryptedKey = encryptedKeyInfo.encryptedKey
+        const userInfo = await this.get_user_info()
+        const privateKey = this.decrypt_RSA_private_key(userInfo.privateKey, userInfo.rsaIv, password)
+        let fileDecryptInfo = JSON.parse(this.decrypt_with_privateKey(encryptedKey, privateKey))
+        fileDecryptInfo.iv = this.string_to_iv(fileDecryptInfo.iv)
+        return fileDecryptInfo
     }
 
     this.key_to_string = function(keyInfo) {
@@ -862,56 +853,15 @@ exports.init = function(debug, debugHost) {
         return JSON.stringify(keyInfo)
     }
 
-    this.download_file_for_record = function(recordInfo, password, version, asPlaintext) {
-        return new Promise(async (resolve, reject) => {
-            if (!recordInfo.files) {
-                reject("No files exist for record")
-            }
-            if (version < 0) {
-                reject("Version number must be non-negative integer")
-            }
-            if (version >= recordInfo.files.length) {
-                reject(`Invalid version number ${version} for record with ${recordInfo.files.length} versions`)
-            }
-            if (version !== 0)
-                version = version || recordInfo.files.length - 1 // default to recent
-            const fileInfo = recordInfo.files[version]
-            let fileURL = fileInfo.remoteURL
-
-            let encryptedKeyInfo = recordInfo[this.email.toLowerCase().replace(/\./g, " ")]
-
-            if (!encryptedKeyInfo) {
-                reject(`User ${this.email} does not have key for decrypting file`); return;
-            }
-
-            let fileDecryptInfo = {}
-            if (encryptedKeyInfo.iv) { // for symmetric, personal key, non-RSA
-                fileDecryptInfo = this.decrypt_fileKey_symmetric(encryptedKeyInfo, password) 
-            } else { // for RSA
-                try {
-                    fileDecryptInfo = await this.decrypt_fileKey_asymmetric(encryptedKeyInfo, password) 
-                } catch(err) {
-                    reject(err)
-                }
-            }
-            let fileDKey = fileDecryptInfo.key
-            let fileDiv = fileDecryptInfo.iv
-
+    this.get_encrypted_file = function(fileURL) {
+        return new Promise((resolve, reject) => {
             let http = new_HTTP();
             http.open("GET", this.build_full_URL(fileURL), true);
             http.responseType = "arraybuffer"
             http.onreadystatechange = () => {
                 if (http.readyState === 4 && http.status === 200) {
-                    let encryptedData = new Uint8Array(http.response)
-                    let plaintext = this.decrypt_string(encryptedData, fileDKey, fileDiv, 'base64') // this can be used for auto-verification (before splitting)
-
-                    let file = {
-                        type: fileInfo.type,
-                        name: fileInfo.name,
-                        data: asPlaintext ? plaintext : this.str2ab(plaintext)
-                    }
-
-                    resolve(file)
+                    resolve(new Uint8Array(http.response))
+                    
                 } else if (http.readyState === 4) {
                     reject(http.responseText)
                 }
@@ -920,17 +870,54 @@ exports.init = function(debug, debugHost) {
         })
     }
 
-    this.download_file_for_recordID = function(recordID, password, version, asPlaintext) {
-        return new Promise((resolve, reject) => {
-            if (!password) { reject("NO PASSWORD PROVIDED"); return; }
-            this.get_info_for_recordID(recordID)
-            .then(recordInfo => {
-                this.download_file_for_record(recordInfo, password, version, asPlaintext)
-                .then(file => resolve(file))
-                .catch(err => reject(err))
-            })
-            .catch(err => reject(err))
-        })
+    this.download_file_for_record = async function(recordInfo, password, version, asPlaintext) {
+        if (!recordInfo.files) {
+            throw new Error("No files exist for record")
+        }
+        if (version < 0) {
+            throw new Error("Version number must be non-negative integer")
+        }
+        if (version >= recordInfo.files.length) {
+            throw new Error(`Invalid version number ${version} for record with ${recordInfo.files.length} versions`)
+        }
+        if (version !== 0)
+            version = version || recordInfo.files.length - 1 // default to recent
+        const fileInfo = recordInfo.files[version]
+        let fileURL = fileInfo.remoteURL
+
+        let encryptedKeyInfo = recordInfo[this.email.toLowerCase().replace(/\./g, " ")]
+
+        if (!encryptedKeyInfo) {
+            throw new Error(`User ${this.email} does not have key for decrypting file`);
+        }
+
+        let fileDecryptInfo = {}
+        if (encryptedKeyInfo.iv) { // for symmetric, personal key, non-RSA
+            fileDecryptInfo = this.decrypt_fileKey_symmetric(encryptedKeyInfo, password) 
+        } else { // for RSA
+            fileDecryptInfo = await this.decrypt_fileKey_asymmetric(encryptedKeyInfo, password) 
+        }
+        let fileDKey = fileDecryptInfo.key
+        let fileDiv = fileDecryptInfo.iv
+
+        let encryptedData = await this.get_encrypted_file(fileURL)
+        let plaintext = this.decrypt_string(encryptedData, fileDKey, fileDiv, 'base64') // this can be used for auto-verification (before splitting)
+
+        let file = {
+            type: fileInfo.type,
+            name: fileInfo.name,
+            data: asPlaintext ? plaintext : this.str2ab(plaintext)
+        }
+        return file
+    }
+
+    this.download_file_for_recordID = async function(recordID, password, version, asPlaintext) {
+        if (!recordID) { throw new Error("recordID is required"); }
+        if (!password) { throw new Error("password is required"); }
+
+        let recordInfo = await this.get_info_for_recordID(recordID)
+        let file = await this.download_file_for_record(recordInfo, password, version, asPlaintext)
+        return file
     }
 
     this.get_user_info = function() {
@@ -972,36 +959,31 @@ exports.init = function(debug, debugHost) {
         })
     }
 
-    this.share_record = function(recordID, shareEmail, password) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                await this.share_record_access(recordID, shareEmail)
-                let recordInfo = await this.get_info_for_recordID(recordID)
-                let publicKey = await this.get_public_key(shareEmail)
+    this.share_record = async function(recordID, shareEmail, password) {
+        if (!recordID) throw new Error("RecordID is required")
+        if (!shareEmail) throw new Error("shareEmail is required")
+        if (!password) throw new Error("passowrd is required")
+        
+        await this.share_record_access(recordID, shareEmail)
+        let recordInfo = await this.get_info_for_recordID(recordID)
+        let publicKey = await this.get_public_key(shareEmail)
 
-                if (recordInfo.creator.toLowerCase() !== this.email.toLowerCase()) {
-                    reject(`Only the record creator ${recordInfo.creator} may share file content`)
-                    return
-                }
-                if (!recordInfo.files || (recordInfo.files && recordInfo.files.length === 0)) {
-                    reject("No files exist for record"); return;
-                }
-                let keyField = this.email.toLowerCase().replace(/\./g, " ")
-                if (!recordInfo[keyField]) {
-                    reject(`No key set for user ${this.email}`); return;
-                }
+        if (recordInfo.creator.toLowerCase() !== this.email.toLowerCase()) {
+            throw new Error(`Only the record creator ${recordInfo.creator} may share file content`)
+        }
+        if (!recordInfo.files || (recordInfo.files && recordInfo.files.length === 0)) {
+            throw new Error("No files exist for record");
+        }
+        let keyField = this.email.toLowerCase().replace(/\./g, " ")
+        if (!recordInfo[keyField]) {
+            throw new Error(`No key set for user ${this.email}`);
+        }
 
-                const keyInfo = this.decrypt_fileKey_symmetric(recordInfo[keyField], password)
-                const keyString = this.key_to_string(keyInfo)
-                const encryptedKey = this.encrypt_with_publicKey(keyString, publicKey)
+        const keyInfo = this.decrypt_fileKey_symmetric(recordInfo[keyField], password)
+        const keyString = this.key_to_string(keyInfo)
+        const encryptedKey = this.encrypt_with_publicKey(keyString, publicKey)
 
-                this.store_user_key_for_record(shareEmail, recordID, encryptedKey)
-                .catch(err => reject(err))
-                .finally(() => resolve())
-            } catch(err) {
-                reject(err)
-            }
-        })
+        await this.store_user_key_for_record(shareEmail, recordID, encryptedKey)
     }
 
     this.create_data_management = function(content, name, type, password, desc) {
