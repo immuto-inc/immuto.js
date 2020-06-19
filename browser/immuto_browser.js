@@ -645,6 +645,18 @@ exports.init = function(debug, debugHost) {
         return bufView;
     }
 
+    this.ab2str = function(buffer) {
+        if (!buffer) { throw new Error("No buffer given") }
+    
+        let str = ""
+
+        for (let charCode of buffer) {
+            str += String.fromCharCode(charCode)
+        }
+
+        return str
+    }
+
     this.get_file_content = function(file) {
         return new Promise((resolve, reject) => {
             if (!file) { reject("No file given"); return; }
@@ -1085,6 +1097,13 @@ exports.init = function(debug, debugHost) {
             if (!type) { reject("No type given"); return; }
             if (!password) { reject("No password given"); return; }
 
+            if (typeof content !== "string") {
+                try {
+                    content = this.ab2str(content)
+                } catch(err) {
+                    throw new Error(`Failed to convert data to string: ${err}`)
+                }
+            }
 
             // Good practice to keep account encrypted unless in use (signing transaction)
             let account = undefined;
@@ -1135,6 +1154,14 @@ exports.init = function(debug, debugHost) {
 
             if (!this.utils.parse_record_ID(recordID)) {
                 reject("Invalid recordID"); return; 
+            }
+
+            if (typeof newContent !== "string") {
+                try {
+                    newContent = this.ab2str(newContent)
+                } catch(err) {
+                    throw new Error(`Failed to convert data to string: ${err}`)
+                }
             }
 
             let account = undefined;
@@ -1225,6 +1252,14 @@ exports.init = function(debug, debugHost) {
             if (!recordID) { reject("No recordID given"); return; }
             if (!type) { reject("No type given"); return; }
             if (!verificationContent) { reject("No verificationContent given"); return; }
+
+            if (typeof verificationContent !== "string") {
+                try {
+                    verificationContent = this.ab2str(verificationContent)
+                } catch(err) {
+                    throw new Error(`Failed to convert data to string: ${err}`)
+                }
+            }
 
             let recordInfo = this.utils.parse_record_ID(recordID)
             if (!recordInfo) {
