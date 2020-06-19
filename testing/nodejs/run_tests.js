@@ -21,8 +21,14 @@ if (!password) {
 run_tests(email, password)
 
 function validate_recordID(recordID) {
-    const parsed = im.utils.parse_record_ID(recordID) // throws error in issue
+    const parsed = im.utils.parse_record_ID(recordID) // throws error on issue
     return recordID
+}
+
+function assert_throw(assertion, message) {
+    if (!assertion) {
+        throw new Error(message)
+    }
 }
 
 async function run_tests(email, password) {
@@ -77,6 +83,8 @@ async function data_management_tests() {
         if (!verified) {
             throw new Error("Failed verification of digital agreement")
         }
+        assert_throw(verified.email === im.email, `Verified email ${verified.email} does not match auth email ${im.email}`)
+
         console.log("Passed basic data management test")
     } catch(err) {
         throw err
@@ -90,6 +98,7 @@ async function data_management_tests() {
         if (!verified) {
             throw new Error("Failed verification of editable record")
         }
+        assert_throw(verified.email === im.email, `Verified email ${verified.email} does not match auth email ${im.email}`)
 
         let updatedContent = "NEW_CONTENT"
         let update = await im.update_data_management(recordID, updatedContent, password)
@@ -98,6 +107,8 @@ async function data_management_tests() {
         if (!verified) {
             throw new Error("Failed verification of editable record after update")
         }
+        assert_throw(verified.email === im.email, `Verified email ${verified.email} does not match auth email ${im.email}`)
+
         console.log("Passed editable data management test")
     } catch(err) {
         throw err
@@ -180,6 +191,7 @@ async function test_sharing() {
         if (!verified) {
             throw new Error("Failed verification")
         }
+        assert_throw(verified.email === im.email, `Verified email ${verified.email} does not match auth email ${im.email}`)
 
         await im.share_record(recordID, "test@test.com", password)
 
@@ -193,6 +205,10 @@ async function test_sharing() {
         if (!verified) {
             throw new Error("Failed verification")
         }
+        // im.email is now test@test.com and should not match the record
+        assert_throw(verified.email !== im.email, `Verified email ${verified.email} should not match auth email ${im.email}`)
+        assert_throw(verified.email === "sebastian.a.coates@gmail.com", `Verified email ${verified.email} does not match auth email "sebastian.a.coates@gmail.com"`)
+
         console.log("Passed record sharing test")
     } catch(err) {
         throw err
