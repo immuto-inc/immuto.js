@@ -1,3 +1,5 @@
+const IN_BROWSER = true;
+
 let email = window.localStorage.email
 let password = window.localStorage.password
 
@@ -34,6 +36,7 @@ async function run_tests(email, password) {
         // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
 
+        await test_bad_usage()
         await data_management_tests()
         await test_encryption()
         await test_file_upload()
@@ -242,3 +245,24 @@ async function test_example_usage() {
     }
 }
 
+const BAD_USAGES = [
+    {
+        name: "Create no args",
+        badUsage: () => {
+            return im.create_data_management()
+        },
+        expectedError: "No content given"
+    }
+]
+async function test_bad_usage() {
+    for (const { name, badUsage, expectedError } of BAD_USAGES) {
+        try {
+            await badUsage() // should throw error
+            throw new Error(`Failed to catch bad usage: ${name}`)
+        } catch(err) {
+            const message = err.message || err // thrown error || promise rejection
+            assert_throw(message === expectedError, `'${message}' does not match expected error: '${expectedError}'`)
+        }
+    }
+    console.log("Passed bad usage tests!")
+}

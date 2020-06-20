@@ -2,6 +2,8 @@ let Immuto = require("../../nodejs/immuto.js")
 let crypto = require('crypto')
 let fs = require('fs')
 
+const IN_BROWSER = false;
+
 const IMMUTO_URL = "http://localhost:8005"
 let im = Immuto.init(true, IMMUTO_URL)
 
@@ -39,7 +41,8 @@ async function run_tests(email, password) {
         // await test_org_member_registration()
         // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
-
+ 
+        await test_bad_usage()
         await data_management_tests()
         await test_encryption()
         // await test_file_upload()   // Not supported in backend, yet
@@ -247,3 +250,27 @@ async function test_example_usage() {
         console.error(err)
     }
 }
+
+const BAD_USAGES = [
+    {
+        name: "Create no args",
+        badUsage: () => {
+            return im.create_data_management()
+        },
+        expectedError: "No content given"
+    }
+]
+async function test_bad_usage() {
+    for (const { name, badUsage, expectedError } of BAD_USAGES) {
+        try {
+            await badUsage() // should throw error
+            throw new Error(`Failed to catch bad usage: ${name}`)
+        } catch(err) {
+            const message = err.message || err // thrown error || promise rejection
+            assert_throw(message === expectedError, `'${message}' does not match expected error: '${expectedError}'`)
+        }
+    }
+    console.log("Passed bad usage tests!")
+}
+
+
