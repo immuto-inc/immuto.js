@@ -252,7 +252,28 @@ const BAD_USAGES = [
             return im.create_data_management()
         },
         expectedError: "No content given"
-    }
+    },
+    {
+        name: "Create no name",
+        badUsage: () => {
+            return im.create_data_management("Content")
+        },
+        expectedError: "No name given"
+    },
+    {
+        name: "Create no type",
+        badUsage: () => {
+            return im.create_data_management("Content", "Name")
+        },
+        expectedError: "No type given"
+    },
+    {
+        name: "Create no password",
+        badUsage: () => {
+            return im.create_data_management("Content", "Name", 'editable')
+        },
+        expectedError: "No password given"
+    },
 ]
 async function test_bad_usage() {
     for (const { name, badUsage, expectedError } of BAD_USAGES) {
