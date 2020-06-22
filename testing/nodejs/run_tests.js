@@ -254,31 +254,38 @@ async function test_example_usage() {
 const BAD_USAGES = [
     {
         name: "Create no args",
-        badUsage: () => {
-            return im.create_data_management()
-        },
+        badUsage: () => {return im.create_data_management()},
         expectedError: "No content given"
     },
     {
         name: "Create no name",
-        badUsage: () => {
-            return im.create_data_management("Content")
-        },
+        badUsage: () => {return im.create_data_management("Content")},
         expectedError: "No name given"
     },
     {
         name: "Create no type",
-        badUsage: () => {
-            return im.create_data_management("Content", "Name")
-        },
+        badUsage: () => {return im.create_data_management("Content", "Name")},
         expectedError: "No type given"
     },
     {
         name: "Create no password",
-        badUsage: () => {
-            return im.create_data_management("Content", "Name", 'editable')
-        },
+        badUsage: () => {return im.create_data_management("Content", "Name", 'editable')},
         expectedError: "No password given"
+    },
+    {
+        name: "Create bad type",
+        badUsage: () => {return im.create_data_management("Content", "Name", 'bad_type', 'password')},
+        expectedError: "Invalid type: bad_type"
+    },
+    {
+        name: "Verify bad type",
+        badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type', 'vContent')},
+        expectedError: "Invalid type: bad_type"
+    },
+    {
+        name: "History bad type",
+        badUsage: () => {return im.get_data_management_history("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type')},
+        expectedError: "Invalid type: bad_type"
     },
 ]
 async function test_bad_usage() {
