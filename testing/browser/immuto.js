@@ -13,6 +13,7 @@ var crypto = require('crypto')
 const NodeRSA = require('node-rsa');
 
 const SYMMETRIC_SCHEME="aes-256-ctr"
+const VALID_RECORD_TYPES=["basic", "editable"]
 
 function new_HTTP() {
     if (IN_BROWSER) return new XMLHttpRequest()
@@ -1099,6 +1100,9 @@ exports.init = function(debug, debugHost) {
             if (!type) { reject("No type given"); return; }
             if (!password) { reject("No password given"); return; }
 
+            type = type.toLowerCase()
+            if (!VALID_RECORD_TYPES.includes(type)) { reject(`Invalid type: ${type}`) }
+
             if (typeof content !== "string") {
                 try {
                     content = this.ab2str(content)
@@ -1210,6 +1214,9 @@ exports.init = function(debug, debugHost) {
             if (!recordID) { reject("No recordID given"); return; }
             if (!type) { reject("No type given"); return; }
 
+            type = type.toLowerCase()
+            if (!VALID_RECORD_TYPES.includes(type)) { reject(`Invalid type: ${type}`) }
+
             let recordInfo = this.utils.parse_record_ID(recordID)
 
             if (!recordInfo) {
@@ -1254,6 +1261,9 @@ exports.init = function(debug, debugHost) {
             if (!recordID) { reject("No recordID given"); return; }
             if (!type) { reject("No type given"); return; }
             if (!verificationContent) { reject("No verificationContent given"); return; }
+
+            type = type.toLowerCase()
+            if (!VALID_RECORD_TYPES.includes(type)) { reject(`Invalid type: ${type}`) }
 
             if (typeof verificationContent !== "string") {
                 try {
