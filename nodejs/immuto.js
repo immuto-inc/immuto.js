@@ -1213,7 +1213,7 @@ exports.init = function(debug, debugHost) {
             if (!type) { reject("No type given"); return; }
 
             type = type.toLowerCase()
-            if (!VALID_RECORD_TYPES.includes(type)) { reject(`Invalid type: ${type}`) }
+            if (!VALID_RECORD_TYPES.includes(type)) { reject(`Invalid type: ${type}`); return; }
 
             let recordInfo = this.utils.parse_record_ID(recordID)
 
