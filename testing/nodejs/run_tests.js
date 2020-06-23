@@ -3,24 +3,23 @@ let crypto = require('crypto')
 let fs = require('fs')
 
 const IN_BROWSER = false;
-
 const IMMUTO_URL = "http://localhost:8005"
 let im = Immuto.init(true, IMMUTO_URL)
 
-let email = process.env.EMAIL
-let password = process.env.PASSWORD
+let email    = IN_BROWSER ? window.localStorage.email    : process.env.EMAIL
+let password = IN_BROWSER ? window.localStorage.password : process.env.PASSWORD
 
-if (!email) {
-   console.error("EMAIL not set")
-   process.exit()
+if (!(email && password)) {
+    const errMessage = "Email and password are required"
+    if (!IN_BROWSER) {
+        console.error(errMessage)
+        process.exit()
+    } else {
+        alert(errMessage)
+    }
+} else {
+    run_tests(email, password)
 }
-
-if (!password) {
-   console.error("PASSWORD not set")
-   process.exit()
-}
-
-run_tests(email, password)
 
 function validate_recordID(recordID) {
     const parsed = im.utils.parse_record_ID(recordID) // throws error on issue
@@ -45,14 +44,16 @@ async function run_tests(email, password) {
         await test_bad_usage()
         await data_management_tests()
         await test_encryption()
-        // await test_file_upload()   // Not supported in backend, yet
-        // await test_sharing()       // Not supported in backend, yet
-        // await test_example_usage() // Not supported in backend, yet
+        if (IN_BROWSER) await test_file_upload()  
+        if (IN_BROWSER) await test_sharing()      
+        if (IN_BROWSER) await test_example_usage()
 
         console.log("All tests passed!")
     } catch (err) {
         console.error("Error during tests:")
         console.error(err)
+    } finally {
+        if (!IN_BROWSER) process.exit()
     }
 }
 
@@ -251,6 +252,18 @@ async function test_example_usage() {
     }
 }
 
+async function test_bad_usage() {
+    for (const { name, badUsage, expectedError } of BAD_USAGES) {
+        try {
+            await badUsage() // should throw error
+            throw new Error(`Failed to catch bad usage: ${name}`)
+        } catch(err) {
+            const message = err.message || err // thrown error || promise rejection
+            assert_throw(message === expectedError, `'${message}' does not match expected error: '${expectedError}'`)
+        }
+    }
+    console.log("Passed bad usage tests!")
+}
 const BAD_USAGES = [
     {
         name: "Create no args",
@@ -288,17 +301,3 @@ const BAD_USAGES = [
         expectedError: "Invalid type: bad_type"
     },
 ]
-async function test_bad_usage() {
-    for (const { name, badUsage, expectedError } of BAD_USAGES) {
-        try {
-            await badUsage() // should throw error
-            throw new Error(`Failed to catch bad usage: ${name}`)
-        } catch(err) {
-            const message = err.message || err // thrown error || promise rejection
-            assert_throw(message === expectedError, `'${message}' does not match expected error: '${expectedError}'`)
-        }
-    }
-    console.log("Passed bad usage tests!")
-}
-
-
