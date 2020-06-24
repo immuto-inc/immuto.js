@@ -38,11 +38,11 @@ async function run_tests(email, password) {
         // await im.authenticate(email, password) // re-authenticate org-admin
  
         await test_bad_usage()
-        await data_management_tests()
-        await test_encryption()
-        if (IN_BROWSER) await test_file_upload()  
-        if (IN_BROWSER) await test_sharing()      
-        if (IN_BROWSER) await test_example_usage()
+        // await data_management_tests()
+        // await test_encryption()
+        // if (IN_BROWSER) await test_file_upload()  
+        // if (IN_BROWSER) await test_sharing()      
+        // if (IN_BROWSER) await test_example_usage()
 
         console.log("All tests passed!")
     } catch (err) {
@@ -287,9 +287,44 @@ const BAD_USAGES = [
         expectedError: "Invalid type: bad_type"
     },
     {
+        name: "Verify no recordID",
+        badUsage: () => {return im.verify_data_management()},
+        expectedError: "No recordID given"
+    },
+    {
+        name: "Verify no type",
+        badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000")},
+        expectedError: "No type given"
+    },
+    {
+        name: "Verify no content",
+        badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'editable')},
+        expectedError: "No verificationContent given"
+    },
+    {
         name: "Verify bad type",
         badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type', 'vContent')},
         expectedError: "Invalid type: bad_type"
+    },
+    {
+        name: "Verify invalid recordID",
+        badUsage: () => {return im.get_data_management_history("0x6000000", "editable", "newcontent")},
+        expectedError: "Invalid recordID: 0x6000000, reason: length not 48"
+    },
+    {
+        name: "History no recordID",
+        badUsage: () => {return im.get_data_management_history()},
+        expectedError: "No recordID given"
+    },
+    {
+        name: "History bad type",
+        badUsage: () => {return im.get_data_management_history("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000")},
+        expectedError: "No type given"
+    },
+    {
+        name: "History invalid recordID",
+        badUsage: () => {return im.get_data_management_history("0x6000000", "editable")},
+        expectedError: "Invalid recordID: 0x6000000, reason: length not 48"
     },
     {
         name: "History bad type",
