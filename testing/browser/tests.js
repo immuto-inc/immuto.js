@@ -262,6 +262,11 @@ async function test_bad_usage() {
 }
 const BAD_USAGES = [
     {
+        name: "Invalid password (create_data_management)",
+        badUsage: () => {return im.create_data_management("Content", "Name", 'editable', 'bad_password')},
+        expectedError: "Incorrect password"
+    },
+    {
         name: "Create no args",
         badUsage: () => {return im.create_data_management()},
         expectedError: "No content given"
