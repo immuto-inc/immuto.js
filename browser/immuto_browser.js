@@ -191,6 +191,17 @@ exports.init = function(debug, debugHost) {
         }
     }
 
+    this.decrypt_account = function(password) {
+        try {
+            return this.web3.eth.accounts.decrypt( 
+                this.encryptedKey, 
+                password + this.salt 
+            );
+        } catch(err) {
+            throw new Error("Incorrect password")
+        }
+    }
+
     this.get_registration_token = function(address) {
         return new Promise((resolve, reject) => {
             if (!address) {
@@ -320,17 +331,13 @@ exports.init = function(debug, debugHost) {
                     this.encryptedKey = response.encryptedKey
                     this.authToken = response.authToken
 
-                    let account = undefined
+                    let account = {}
                     try {
-                        account = this.web3.eth.accounts.decrypt( 
-                            this.encryptedKey, 
-                            password + this.salt 
-                        );
+                        account = this.decrypt_account(password)
                     } catch(err) {
-                        reject("Incorrect password")
-                        return
+                        reject(err); return;
                     }
-                    
+
                     let signature = account.sign(this.authToken)
                     let sendstring = "address=" + account.address
                     sendstring += "&signature=" + JSON.stringify(signature)
@@ -418,21 +425,8 @@ exports.init = function(debug, debugHost) {
         if (!string) throw new Error("string is required for signing")
         if (!password) throw new Error("password is required to sign string")
 
-        let account = undefined;
-        try { 
-            account = this.web3.eth.accounts.decrypt(
-                this.encryptedKey, 
-                password + this.salt
-            );
-
-            return account.sign(string)
-        } catch(err) {
-            if (!this.email) {
-                throw new Error("User not yet authenticated.");
-            } else {
-                throw(err)
-            }
-        }
+        let account =  this.decrypt_account(password) // throws error on bad password
+        return account.sign(string)
     }
 
     this.get_public_key = function(email) {
@@ -1101,19 +1095,11 @@ exports.init = function(debug, debugHost) {
             }
 
             // Good practice to keep account encrypted unless in use (signing transaction)
-            let account = undefined;
-            try { 
-                account = this.web3.eth.accounts.decrypt(
-                    this.encryptedKey, 
-                    password + this.salt
-                );
+            let account = {}
+            try {
+                account = this.decrypt_account(password)
             } catch(err) {
-                if (!this.email) {
-                    reject("User not yet authenticated.");
-                } else {
-                    reject("User password invalid")
-                }
-                return;
+                reject(err); return;
             }
 
             let signature = account.sign(content)
@@ -1159,15 +1145,11 @@ exports.init = function(debug, debugHost) {
                 }
             }
 
-            let account = undefined;
+            let account = {}
             try {
-                account = this.web3.eth.accounts.decrypt(
-                    this.encryptedKey, 
-                    password + this.salt
-                );
+                account = this.decrypt_account(password)
             } catch(err) {
-                reject(err);
-                return;
+                reject(err); return;
             }
             this.get_data_management_history(recordID, 'editable').then((history) => {
                 let priorHash = history.pop().hash
