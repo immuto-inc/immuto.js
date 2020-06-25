@@ -292,6 +292,26 @@ const BAD_USAGES = [
         expectedError: "Invalid type: bad_type"
     },
     {
+        name: "Update no recordID",
+        badUsage: () => {return im.update_data_management()},
+        expectedError: "No recordID given"
+    },
+    {
+        name: "Update no content",
+        badUsage: () => {return im.update_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", '')},
+        expectedError: "No newContent given"
+    },
+    {
+        name: "Update no password",
+        badUsage: () => {return im.update_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type', '')},
+        expectedError: "No password given"
+    },
+    {
+        name: "Update invalid recordID",
+        badUsage: () => {return im.update_data_management("0x6000000", "newContent", "password")},
+        expectedError: "Invalid recordID: 0x6000000, reason: length not 48"
+    },
+    {
         name: "Verify no recordID",
         badUsage: () => {return im.verify_data_management()},
         expectedError: "No recordID given"
@@ -322,7 +342,7 @@ const BAD_USAGES = [
         expectedError: "No recordID given"
     },
     {
-        name: "History bad type",
+        name: "History no type",
         badUsage: () => {return im.get_data_management_history("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000")},
         expectedError: "No type given"
     },
