@@ -38,11 +38,11 @@ async function run_tests(email, password) {
         // await im.authenticate(email, password) // re-authenticate org-admin
  
         await test_bad_usage()
-        // await data_management_tests()
-        // await test_encryption()
-        // if (IN_BROWSER) await test_file_upload()  
-        // if (IN_BROWSER) await test_sharing()      
-        // if (IN_BROWSER) await test_example_usage()
+        await data_management_tests()
+        await test_encryption()
+        if (IN_BROWSER) await test_file_upload()  
+        if (IN_BROWSER) await test_sharing()      
+        if (IN_BROWSER) await test_example_usage()
 
         console.log("All tests passed!")
     } catch (err) {

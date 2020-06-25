@@ -12,6 +12,8 @@ const NodeRSA = require('node-rsa');
 
 const SYMMETRIC_SCHEME="aes-256-ctr"
 const VALID_RECORD_TYPES=["basic", "editable"]
+const DEV_ENDPOINT  = "https://dev.immuto.io"
+const PROD_ENDPIONT = "https://api.immuto.io"
 
 function new_HTTP() {
     if (IN_BROWSER) return new XMLHttpRequest()
@@ -24,16 +26,16 @@ function new_Form() { // for sending files with XMLHttpRequest
 }
 
 exports.init = function(debug, debugHost) {    
-    this.host = "https://api.immuto.io"
+    this.host = PROD_ENDPIONT
     if (debug === true) {
         if (debugHost)
             this.host = debugHost
         else 
-            this.host = "https://dev.immuto.io" // reasonable default
+            this.host = DEV_ENDPOINT // reasonable default
     }
 
     try {
-        this.web3 = new Web3("https://api.immuto.io") // Dummy provider because required on init now
+        this.web3 = new Web3(PROD_ENDPIONT) // Dummy provider because required on init now
     } catch(err) {
         console.error(err)
         throw new Error("Web3js is a required dependency of the Immuto API. Make sure it is included wherever immuto.js is present.")
@@ -156,29 +158,18 @@ exports.init = function(debug, debugHost) {
                 shardHex: recordID.substring(42)
             }
         },
-        shard_to_URL: (shardIndex, forVerification) => {
+        shard_to_URL: (shardIndex) => {
             if (!shardIndex && shardIndex !== 0) {
                 throw new Error("No prefix given")
             }
 
-            if (shardIndex === 0) {
-                if (forVerification) {
-                    return "http://localhost:8443"
-                }
-                return "http://localhost:8545"
-            } 
+            if (shardIndex === 0) { return "http://localhost:8443" } 
 
-            if (this.host === "https://www.immuto.io") {
-                if (forVerification) {
-                    return `https://prod${shardIndex}.immuto.io:8443`
-                }
-                return `https://prod${shardIndex}.immuto.io:443`
+            if (this.host === PROD_ENDPIONT) { 
+                return `https://prod${shardIndex}.immuto.io:8443` 
             }
 
-            if (forVerification) {
-                return `https://shard${shardIndex}.immuto.io:8443`
-            }
-            return `https://shard${shardIndex}.immuto.io:443`
+            return `https://shard${shardIndex}.immuto.io:8443`
         },
 
         shardIndex_to_hex: (shardIndex) => {
@@ -908,7 +899,7 @@ exports.init = function(debug, debugHost) {
     this.build_full_URL = function(remoteURL) {
         if (!remoteURL) { throw new Error("No remoteURL given") }
 
-        const S3_BUCKET = this.host === "https://www.immuto.io" ? "immuto-prod" : "immuto-sandbox"
+        const S3_BUCKET = this.host === PROD_ENDPIONT ? "immuto-prod" : "immuto-sandbox"
 
         if (remoteURL.includes(S3_BUCKET)) return remoteURL
 
@@ -1222,7 +1213,7 @@ exports.init = function(debug, debugHost) {
             }
 
             let shardIndex = this.utils.hex_to_shardIndex(recordInfo.shardHex)
-            const web3 = new Web3(this.utils.shard_to_URL(shardIndex, true))
+            const web3 = new Web3(this.utils.shard_to_URL(shardIndex))
 
             let contract = undefined
             if (type === "basic") {
