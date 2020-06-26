@@ -300,25 +300,9 @@ exports.init = function(debug, debugHost) {
         })
     }
 
-    this.authenticate = function(email, password) {
+    this.submit_login = function(email, password) {
         return new Promise((resolve, reject) => {
-            if (this.salt && this.encryptedKey && this.authToken && this.email) {
-                reject("User already authenticated. Call deauthenticate before authenticating a new user.")
-                return
-            } 
-
-            if (!email) {
-                reject("Email required for authentication")
-                return
-            }
-            if (!password) {
-                reject("Password required for authentication")
-                return
-            }
-            email = email.toLowerCase()
-
             let http = new_HTTP()
-
             let sendstring = "email=" + email 
             sendstring += "&password=" + this.web3.utils.sha3(password) // server does not see password
 
@@ -326,84 +310,102 @@ exports.init = function(debug, debugHost) {
             http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
             http.onreadystatechange = () => {
                 if (http.readyState === 4 && http.status === 200) {
-                    let response = JSON.parse(http.responseText)
-                    this.salt = response.salt
-                    this.encryptedKey = response.encryptedKey
-                    this.authToken = response.authToken
-
-                    let account = {}
-                    try {
-                        account = this.decrypt_account(password)
-                    } catch(err) {
-                        reject(err); return;
-                    }
-
-                    let signature = account.sign(this.authToken)
-                    let sendstring = "address=" + account.address
-                    sendstring += "&signature=" + JSON.stringify(signature)
-                    sendstring += "&authToken=" + this.authToken
-                    sendstring += "&returnUserInfo=" + true
-
-                    let http2 = new_HTTP()
-                    http2.open("POST", this.host + "/prove-address", true)
-                    http2.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-                    http2.onreadystatechange = () => {
-                        if (http2.readyState === 4 && (http2.status === 204 || http2.status === 200)) {
-                            if (IN_BROWSER) {
-                                window.localStorage.IMMUTO_authToken = this.authToken
-                                window.localStorage.IMMUTO_email = email
-                                window.localStorage.IMMUTO_salt = this.salt
-                                window.localStorage.IMMUTO_encryptedKey = this.encryptedKey
-                            }
-                            this.email = email
-
-                            if (http2.status === 204) {
-                                resolve(this.authToken)
-                                return
-                            }
-
-                            let userInfo = JSON.parse(http2.responseText)
-                            if (userInfo.publicKey) {
-                                resolve(this.authToken)
-                                return
-                            }
-
-                            this.generate_RSA_keypair(password)
-                            .catch(err => console.error(err))
-                            .finally(() => resolve(this.authToken))
-                        } else if (http2.readyState === 4) {
-                            console.error("Error on login verification")
-                            reject(http2.responseText)
-                        }
-                    }
-                    http2.send(sendstring)
-                } else if (http.readyState === 4){
-                    console.error("Error on login")
-                    reject(http.status + ": " + http.responseText)
+                    resolve(JSON.parse(http.responseText))
+                } else if (http.readyState === 4) {
+                    reject(http.responseText)
                 }
             }
             http.send(sendstring)
-
         })
+    }
+
+    this.prove_address = function({authToken, salt, encryptedKey}, email, password) {
+        return new Promise((resolve, reject) => {
+            let account = {}
+            try {
+                account = this.decrypt_account(password)
+            } catch(err) {
+                reject(err); return;
+            }
+
+            let signature = account.sign(authToken)
+            let sendstring = "address=" + account.address
+            sendstring += "&signature=" + JSON.stringify(signature)
+            sendstring += "&authToken=" + authToken
+            sendstring += "&returnUserInfo=" + true
+
+            let http2 = new_HTTP()
+            http2.open("POST", this.host + "/prove-address", true)
+            http2.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            http2.onreadystatechange = () => {
+                if (http2.readyState === 4 && (http2.status === 204 || http2.status === 200)) {
+                    if (http2.status === 204) {
+                        resolve(authToken)
+                        return
+                    }
+
+                    let userInfo = JSON.parse(http2.responseText)
+                    if (userInfo.publicKey) { // already generated RSA keypair
+                        resolve(authToken)
+                        return
+                    }
+
+                    this.generate_RSA_keypair(password)
+                    .catch(err => console.error(err))
+                    .finally(() => resolve(authToken))
+                } else if (http2.readyState === 4) {
+                    console.error("Error on login verification")
+                    reject(http2.responseText)
+                }
+            }
+            http2.send(sendstring)
+        })
+    }
+
+    this.authenticate = async function(email, password) {
+        if (!email) { throw new Error("Email required for authentication") }
+        if (!password) { throw new Error("Password required for authentication") }
+
+        if (this.authToken) {
+            await this.deauthenticate()
+        } 
+
+        email = email.toLowerCase()
+        const loginResponse = await this.submit_login(email, password)
+
+        this.salt = loginResponse.salt
+        this.encryptedKey = loginResponse.encryptedKey
+        this.authToken = loginResponse.authToken
+        this.email = email
+        if (IN_BROWSER) {
+            window.localStorage.IMMUTO_salt = this.salt
+            window.localStorage.IMMUTO_encryptedKey = this.encryptedKey
+            window.localStorage.IMMUTO_authToken = this.authToken
+            window.localStorage.IMMUTO_email = this.email
+        }
+
+        return await this.prove_address(loginResponse, email, password)
+    }
+
+    this.reset_state = function() {
+        if (IN_BROWSER) {
+            window.localStorage.IMMUTO_authToken = ""
+            window.localStorage.IMMUTO_email = ""
+            window.localStorage.IMMUTO_salt = ""
+            window.localStorage.IMMUTO_encryptedKey = ""
+        }
+        this.authToken = ""
+        this.email = ""
+        this.salt = ""
+        this.encryptedKey = ""
     }
 
     this.deauthenticate = function() {
         return new Promise((resolve, reject) => {
-            let sendstring = `authToken=${this.authToken}`
-
-            if (IN_BROWSER) {
-                if (!this.authToken) {
-                    sendstring = `authToken=${window.localStorage.IMMUTO_authToken}`
-                }
-                window.localStorage.IMMUTO_authToken = ""
-                window.localStorage.IMMUTO_email = ""
-                window.localStorage.IMMUTO_salt = ""
-                window.localStorage.IMMUTO_encryptedKey = ""
-            }
-            this.authToken = ""
-            this.email = ""
-            this.salt = ""
-            this.encryptedKey = ""
+            const authToken = this.authToken || (IN_BROWSER ? window.localStorage.IMMUTO_authToken : "") 
+            let sendstring = `authToken=${authToken}`
+            
+            this.reset_state()
             
             var http = new_HTTP();
             http.open("POST", this.host + "/logout-API", true);
