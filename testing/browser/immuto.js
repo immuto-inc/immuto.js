@@ -200,6 +200,7 @@ exports.init = function(debug, debugHost) {
                 password + this.salt 
             );
         } catch(err) {
+            console.log(`encryptedKey: ${this.encryptedKey}`)
             throw new Error("Incorrect password")
         }
     }
@@ -374,6 +375,9 @@ exports.init = function(debug, debugHost) {
 
         email = email.toLowerCase()
         const loginResponse = await this.submit_login(email, password)
+        if (loginResponse.result === "Your email or password are incorrect.") { 
+            throw new Error("Incorrect password") 
+        }
 
         this.salt = loginResponse.salt
         this.encryptedKey = loginResponse.encryptedKey

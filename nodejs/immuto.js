@@ -319,7 +319,7 @@ exports.init = function(debug, debugHost) {
         })
     }
 
-    this.prove_address = function({authToken, salt, encryptedKey}, email, password) {
+    this.prove_address = function(authToken, email, password) {
         return new Promise((resolve, reject) => {
             let account = {}
             try {
@@ -372,6 +372,9 @@ exports.init = function(debug, debugHost) {
 
         email = email.toLowerCase()
         const loginResponse = await this.submit_login(email, password)
+        if (loginResponse.result === "Your email or password are incorrect.") { 
+            throw new Error("Incorrect password") 
+        }
 
         this.salt = loginResponse.salt
         this.encryptedKey = loginResponse.encryptedKey
@@ -384,7 +387,7 @@ exports.init = function(debug, debugHost) {
             window.localStorage.IMMUTO_email = this.email
         }
 
-        return await this.prove_address(loginResponse, email, password)
+        return await this.prove_address(this.authToken, email, password)
     }
 
     this.reset_state = function() {
