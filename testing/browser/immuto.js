@@ -200,7 +200,6 @@ exports.init = function(debug, debugHost) {
                 password + this.salt 
             );
         } catch(err) {
-            console.log(`encryptedKey: ${this.encryptedKey}`)
             throw new Error("Incorrect password")
         }
     }

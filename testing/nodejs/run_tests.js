@@ -34,14 +34,14 @@ function assert_throw(assertion, message) {
 
 async function run_tests(email, password) {
     try {       
-        await im.deauthenticate() // in case auth cached by browser
+        await test_bad_usage()
+        await im.deauthenticate() // clean cache from bad_usage auth tests
         await im.authenticate(email, password) 
         
         // await test_org_member_registration()
         // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
  
-        await test_bad_usage()
         await data_management_tests()
         await test_encryption()
         if (IN_BROWSER) await test_file_upload()  
@@ -253,6 +253,119 @@ async function test_example_usage() {
 }
 
 async function test_bad_usage() {
+    const BAD_USAGES = [
+        {
+            name: "Auth no email",
+            badUsage: () => {return im.authenticate()},
+            expectedError: "Email required for authentication"
+        },
+        {
+            name: "Auth no password",
+            badUsage: () => {return im.authenticate(email)},
+            expectedError: "Password required for authentication"
+        },
+        {
+            name: "Auth bad password",
+            badUsage: () => {return im.authenticate(email, "not the password")},
+            expectedError: "Incorrect password"
+        },
+        {
+            name: "Invalid password (create_data_management)",
+            badUsage: () => {return im.create_data_management("Content", "Name", 'editable', 'bad_password')},
+            expectedError: "Incorrect password"
+        },
+        {
+            name: "Create no args",
+            badUsage: () => {return im.create_data_management()},
+            expectedError: "No content given"
+        },
+        {
+            name: "Create no name",
+            badUsage: () => {return im.create_data_management("Content")},
+            expectedError: "No name given"
+        },
+        {
+            name: "Create no type",
+            badUsage: () => {return im.create_data_management("Content", "Name")},
+            expectedError: "No type given"
+        },
+        {
+            name: "Create no password",
+            badUsage: () => {return im.create_data_management("Content", "Name", 'editable')},
+            expectedError: "No password given"
+        },
+        {
+            name: "Create bad type",
+            badUsage: () => {return im.create_data_management("Content", "Name", 'bad_type', 'password')},
+            expectedError: "Invalid type: bad_type"
+        },
+        {
+            name: "Update no recordID",
+            badUsage: () => {return im.update_data_management()},
+            expectedError: "No recordID given"
+        },
+        {
+            name: "Update no content",
+            badUsage: () => {return im.update_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", '')},
+            expectedError: "No newContent given"
+        },
+        {
+            name: "Update no password",
+            badUsage: () => {return im.update_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type', '')},
+            expectedError: "No password given"
+        },
+        {
+            name: "Update invalid recordID",
+            badUsage: () => {return im.update_data_management("0x6000000", "newContent", "password")},
+            expectedError: "Invalid recordID: 0x6000000, reason: length not 48"
+        },
+        {
+            name: "Verify no recordID",
+            badUsage: () => {return im.verify_data_management()},
+            expectedError: "No recordID given"
+        },
+        {
+            name: "Verify no type",
+            badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000")},
+            expectedError: "No type given"
+        },
+        {
+            name: "Verify no content",
+            badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'editable')},
+            expectedError: "No verificationContent given"
+        },
+        {
+            name: "Verify bad type",
+            badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type', 'vContent')},
+            expectedError: "Invalid type: bad_type"
+        },
+        {
+            name: "Verify invalid recordID",
+            badUsage: () => {return im.get_data_management_history("0x6000000", "editable", "newcontent")},
+            expectedError: "Invalid recordID: 0x6000000, reason: length not 48"
+        },
+        {
+            name: "History no recordID",
+            badUsage: () => {return im.get_data_management_history()},
+            expectedError: "No recordID given"
+        },
+        {
+            name: "History no type",
+            badUsage: () => {return im.get_data_management_history("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000")},
+            expectedError: "No type given"
+        },
+        {
+            name: "History invalid recordID",
+            badUsage: () => {return im.get_data_management_history("0x6000000", "editable")},
+            expectedError: "Invalid recordID: 0x6000000, reason: length not 48"
+        },
+        {
+            name: "History bad type",
+            badUsage: () => {return im.get_data_management_history("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type')},
+            expectedError: "Invalid type: bad_type"
+        },
+    ]
+
     for (const { name, badUsage, expectedError } of BAD_USAGES) {
         try {
             await badUsage() // should throw error
@@ -264,101 +377,3 @@ async function test_bad_usage() {
     }
     console.log("Passed bad usage tests!")
 }
-
-const BAD_USAGES = [
-    {
-        name: "Invalid password (create_data_management)",
-        badUsage: () => {return im.create_data_management("Content", "Name", 'editable', 'bad_password')},
-        expectedError: "Incorrect password"
-    },
-    {
-        name: "Create no args",
-        badUsage: () => {return im.create_data_management()},
-        expectedError: "No content given"
-    },
-    {
-        name: "Create no name",
-        badUsage: () => {return im.create_data_management("Content")},
-        expectedError: "No name given"
-    },
-    {
-        name: "Create no type",
-        badUsage: () => {return im.create_data_management("Content", "Name")},
-        expectedError: "No type given"
-    },
-    {
-        name: "Create no password",
-        badUsage: () => {return im.create_data_management("Content", "Name", 'editable')},
-        expectedError: "No password given"
-    },
-    {
-        name: "Create bad type",
-        badUsage: () => {return im.create_data_management("Content", "Name", 'bad_type', 'password')},
-        expectedError: "Invalid type: bad_type"
-    },
-    {
-        name: "Update no recordID",
-        badUsage: () => {return im.update_data_management()},
-        expectedError: "No recordID given"
-    },
-    {
-        name: "Update no content",
-        badUsage: () => {return im.update_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", '')},
-        expectedError: "No newContent given"
-    },
-    {
-        name: "Update no password",
-        badUsage: () => {return im.update_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type', '')},
-        expectedError: "No password given"
-    },
-    {
-        name: "Update invalid recordID",
-        badUsage: () => {return im.update_data_management("0x6000000", "newContent", "password")},
-        expectedError: "Invalid recordID: 0x6000000, reason: length not 48"
-    },
-    {
-        name: "Verify no recordID",
-        badUsage: () => {return im.verify_data_management()},
-        expectedError: "No recordID given"
-    },
-    {
-        name: "Verify no type",
-        badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000")},
-        expectedError: "No type given"
-    },
-    {
-        name: "Verify no content",
-        badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'editable')},
-        expectedError: "No verificationContent given"
-    },
-    {
-        name: "Verify bad type",
-        badUsage: () => {return im.verify_data_management("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type', 'vContent')},
-        expectedError: "Invalid type: bad_type"
-    },
-    {
-        name: "Verify invalid recordID",
-        badUsage: () => {return im.get_data_management_history("0x6000000", "editable", "newcontent")},
-        expectedError: "Invalid recordID: 0x6000000, reason: length not 48"
-    },
-    {
-        name: "History no recordID",
-        badUsage: () => {return im.get_data_management_history()},
-        expectedError: "No recordID given"
-    },
-    {
-        name: "History no type",
-        badUsage: () => {return im.get_data_management_history("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000")},
-        expectedError: "No type given"
-    },
-    {
-        name: "History invalid recordID",
-        badUsage: () => {return im.get_data_management_history("0x6000000", "editable")},
-        expectedError: "Invalid recordID: 0x6000000, reason: length not 48"
-    },
-    {
-        name: "History bad type",
-        badUsage: () => {return im.get_data_management_history("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type')},
-        expectedError: "Invalid type: bad_type"
-    },
-]
