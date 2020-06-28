@@ -380,6 +380,16 @@ async function test_bad_usage() {
             badUsage: () => {return im.upload_file_data("content", "name", "bad_password")},
             expectedError: "Incorrect password"
         },
+        {
+            name: "Download no recordID",
+            badUsage: () => {return im.download_file_data()},
+            expectedError: "No recordID given"
+        },
+        {
+            name: "Download no password",
+            badUsage: () => {return im.download_file_data("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000")},
+            expectedError: "No password given"
+        },
     ]
     
     for (const { name, badUsage, expectedError } of BAD_USAGES) {
