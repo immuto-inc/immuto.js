@@ -798,9 +798,9 @@ exports.init = function(debug, debugHost) {
 
     this.upload_file_data = function(fileContent, fileName, password, projectID, handleProgress) {
         return new Promise((resolve, reject) => {
-            if (!password) { reject("No password given"); return; }
             if (!fileContent) { reject("No fileContent given"); return; }
             if (!fileName) { reject("No fileName given"); return; }
+            if (!password) { reject("No password given"); return; }
 
             let file = {name: fileName, type: "text/plain"}
             projectID = projectID || ''

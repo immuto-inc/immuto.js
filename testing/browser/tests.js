@@ -360,6 +360,26 @@ async function test_bad_usage() {
             badUsage: () => {return im.get_data_management_history("0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000", 'bad_type')},
             expectedError: "Invalid type: bad_type"
         },
+        {
+            name: "Upload no content",
+            badUsage: () => {return im.upload_file_data()},
+            expectedError: "No fileContent given"
+        },
+        {
+            name: "Upload no name",
+            badUsage: () => {return im.upload_file_data("content")},
+            expectedError: "No fileName given"
+        },
+        {
+            name: "Upload no password",
+            badUsage: () => {return im.upload_file_data("content", "name")},
+            expectedError: "No password given"
+        },
+        {
+            name: "Upload no password",
+            badUsage: () => {return im.upload_file_data("content", "name", "bad_password")},
+            expectedError: "Incorrect password"
+        },
     ]
     
     for (const { name, badUsage, expectedError } of BAD_USAGES) {
