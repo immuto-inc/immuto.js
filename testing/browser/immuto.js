@@ -1008,7 +1008,7 @@ exports.init = function(debug, debugHost) {
     this.download_file_for_recordID = async function(recordID, password, version, asPlaintext) {
         if (!recordID) { throw new Error("recordID is required"); }
         if (!password) { throw new Error("password is required"); }
-        console.log(this.utils.parse_record_ID(recordID)) // throws error on bad record
+        this.utils.parse_record_ID(recordID) // throws error on bad record
 
         let recordInfo = await this.get_info_for_recordID(recordID)
         let file = await this.download_file_for_record(recordInfo, password, version, asPlaintext)

@@ -30,6 +30,7 @@ function assert_throw(assertion, message) {
 
 async function run_tests(email, password) {
     try {       
+        await test_utils()
         await test_bad_usage()
         await im.deauthenticate() // clean cache from bad_usage auth tests
         await im.authenticate(email, password) 
@@ -51,6 +52,17 @@ async function run_tests(email, password) {
     } finally {
         if (!IN_BROWSER) process.exit()
     }
+}
+
+async function test_utils() {
+    const testStrings = [
+        "test string",
+        "a",
+    ]
+    for (let testString of testStrings)
+        assert_throw(testString === im.ab2str(im.str2ab(testString)), `testString ${testString} failed to pass ab/str conversion invariant`)
+
+    console.log("Passed utils tests")
 }
 
 async function test_org_member_registration() {
@@ -266,7 +278,7 @@ async function test_bad_usage() {
             expectedError: "Incorrect password"
         },
         {
-            name: "Invalid password (create_data_management)",
+            name: "Create invalid password",
             badUsage: () => {return im.create_data_management("Content", "Name", 'editable', 'bad_password')},
             expectedError: "Incorrect password"
         },
