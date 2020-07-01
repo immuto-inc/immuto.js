@@ -83,10 +83,10 @@ async function test_org_member_registration() {
 
 async function data_management_tests() {
     let content = "EXAMPLE CONTENT"
-    let recordName = "A Record"
+    let recordName = "A Record ?q=5&heloo&&="
     let type = "basic" // alternatively, could be 'editable'
-    let desc = "Record Description" // optional
-
+    let desc = "Record Description ?q=5&heloo&&=" // optional
+    
     try {
         const recordID = await im.create_data_management(content, recordName, type, password, desc)
         validate_recordID(recordID)
