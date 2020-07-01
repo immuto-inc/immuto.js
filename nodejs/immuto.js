@@ -1112,10 +1112,9 @@ exports.init = function(debug, debugHost) {
             signature.message = "" // Maintain data privacy
 
             var xhr = new_HTTP();
-            let sendstring = ""
 
             xhr.open("POST", this.host + "/submit-new-data-upload", true);
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            xhr.setRequestHeader("Content-Type", "application/json")
             xhr.onreadystatechange = () => {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     resolve(xhr.responseText) 
@@ -1124,12 +1123,15 @@ exports.init = function(debug, debugHost) {
                 }
             };
 
-            sendstring += 'filename=' + name
-            sendstring += '&filedesc=' + desc
-            sendstring += '&signature=' + JSON.stringify(signature)
-            sendstring += '&type=' + type
-            sendstring += '&authToken=' + this.authToken
-            xhr.send(sendstring);
+            const query = {
+                filename: name,
+                filedesc: desc,
+                signature: JSON.stringify(signature),
+                type,
+                authToken: this.authToken
+            }
+
+            xhr.send(JSON.stringify(query));
         })
     }
 
