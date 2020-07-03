@@ -39,11 +39,11 @@ async function run_tests(email, password) {
         // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
  
-        // await data_management_tests()
-        // await test_encryption()
+        await data_management_tests()
+        await test_encryption()
         if (IN_BROWSER) await test_file_upload()  
-        // if (IN_BROWSER) await test_sharing()      
-        // if (IN_BROWSER) await test_example_usage()
+        if (IN_BROWSER) await test_sharing()      
+        if (IN_BROWSER) await test_example_usage()
 
         console.log("All tests passed!")
     } catch (err) {
@@ -128,7 +128,7 @@ async function data_management_tests() {
 }
 
 async function test_encryption(attempts) {
-    attempts = attempts || 1000
+    attempts = attempts || 10
 
     for (let i=0; i < attempts; i++){
         let plaintext = 'asd8fu1203hfoiasvjnaosdf081083u12iufnojasdnfrandom'

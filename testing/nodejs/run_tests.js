@@ -133,7 +133,7 @@ async function data_management_tests() {
 }
 
 async function test_encryption(attempts) {
-    attempts = attempts || 1000
+    attempts = attempts || 10
 
     for (let i=0; i < attempts; i++){
         let plaintext = 'asd8fu1203hfoiasvjnaosdf081083u12iufnojasdnfrandom'
