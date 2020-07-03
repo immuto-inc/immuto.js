@@ -36,19 +36,19 @@ async function run_tests(email, password) {
     try {       
         await test_utils()
         await test_bad_usage()
-        await im.deauthenticate() // clean cache from bad_usage auth tests
         await im.authenticate(email, password) 
         
         // await test_org_member_registration()
         // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
- 
+        await test_password_reset()
+
         await data_management_tests()
         await test_encryption()
         if (IN_BROWSER) await test_file_upload()  
         if (IN_BROWSER) await test_sharing()      
         if (IN_BROWSER) await test_example_usage()
-
+        
         console.log("All tests passed!")
     } catch (err) {
         console.error("Error during tests:")
@@ -66,7 +66,6 @@ async function test_utils() {
     for (let testString of testStrings)
         assert_throw(testString === im.ab2str(im.str2ab(testString)), `testString ${testString} failed to pass ab/str conversion invariant`)
 
-    
     console.log("Passed utils tests")
 }
 
@@ -91,7 +90,7 @@ async function data_management_tests() {
     let recordName = "A Record ?q=5&heloo&&="
     let type = "basic" // alternatively, could be 'editable'
     let desc = "Record Description ?q=5&heloo&&=" // optional
-
+    
     try {
         const recordID = await im.create_data_management(content, recordName, type, password, desc)
         validate_recordID(recordID)
@@ -265,6 +264,69 @@ async function test_example_usage() {
     }
 }
 
+async function test_password_reset() {
+    const resetEmail = "test@test.com"
+    const originalPassword = "testpassword"
+    const newpassword = "newpassword"
+
+    let personalRecord = ""
+    let sharedRecord = ""
+    const personalContent = "Personal Record Content"
+    const sharedContent = "Shared Record Content"
+
+    await im.authenticate(resetEmail, originalPassword)
+
+    if (IN_BROWSER) {
+        personalRecord = await im.upload_file_data(personalContent, "test", originalPassword)
+
+        let personalDownload = await im.download_file_for_recordID(personalRecord, originalPassword, 0, true)
+        if (personalContent !== personalDownload.data) {
+            throw new Error("Uploaded content does not match downloaded content")
+        }
+
+        
+        await im.authenticate(email, password)
+        sharedRecord = await im.upload_file_data(sharedContent, "shared test", password)
+        await im.share_record(sharedRecord, resetEmail, password)
+
+        await im.authenticate(resetEmail, originalPassword)
+        let sharedDownload = await im.download_file_for_recordID(sharedRecord, originalPassword, 0, true)
+        if (sharedContent !== sharedDownload.data) {
+            throw new Error("Uploaded content does not match downloaded content")
+        }
+        console.log("Passed decryption before password reset (both personal and shared)")
+
+
+        await im.reset_password(originalPassword, newpassword)
+        let rePersonalDownload = await im.download_file_for_recordID(personalRecord, newpassword, 0, true)
+        if (personalContent !== rePersonalDownload.data) {
+            throw new Error("Uploaded content does not match downloaded content")
+        }
+        let reSharedDownload = await im.download_file_for_recordID(sharedRecord, newpassword, 0, true)
+        if (sharedContent !== reSharedDownload.data) {
+            throw new Error("Uploaded content does not match downloaded content")
+        }
+        console.log("Passed decryption after password reset (both personal and shared)")
+
+        await im.reset_password(newpassword, originalPassword) // reset back to original
+        let rerePersonalDownload = await im.download_file_for_recordID(personalRecord, originalPassword, 0, true)
+        if (personalContent !== rerePersonalDownload.data) {
+            throw new Error("Uploaded content does not match downloaded content")
+        }
+        let rereSharedDownload = await im.download_file_for_recordID(sharedRecord, originalPassword, 0, true)
+        if (sharedContent !== rereSharedDownload.data) {
+            throw new Error("Uploaded content does not match downloaded content")
+        }
+        console.log("Passed decryption after password re-reset (both personal and shared)")
+    } else {
+        await im.reset_password(originalPassword, newpassword)
+        await im.reset_password(newpassword, originalPassword)
+    }
+
+    await im.authenticate(email, password) // reset login to original user
+    console.log("Passed password reset test")
+}
+
 async function test_bad_usage() {
     const BAD_USAGES = [
         {
@@ -414,7 +476,7 @@ async function test_bad_usage() {
             requiresAuth: true,
         },
     ]
-
+    
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
         try {
             if (requiresAuth) await im.authenticate(email, password)

@@ -426,6 +426,49 @@ exports.init = function(debug, debugHost) {
         })
     }
 
+    this.update_encryption_info = function(encryptedKey, hashedPassword) {
+        return new Promise((resolve, reject) => {
+            const xhr = new_HTTP();
+
+            xhr.open("POST", this.host + "/reset-password", true);
+            xhr.setRequestHeader("Content-Type", "application/json")
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === 4 && xhr.status === 204) {
+                    resolve() 
+                } else if (xhr.readyState === 4) {
+                    reject(xhr.responseText)
+                }
+            };
+
+            encryptedKey = JSON.stringify(encryptedKey)
+            const query = {
+                encryptedKey,
+                hashedPassword,
+                authToken: this.authToken
+            }
+
+            xhr.send(JSON.stringify(query));
+        })
+    }
+
+    this.reset_password = async function(oldPassword, newPassword) {
+        if (!oldPassword) throw new Error("oldPassword required")
+        if (!newPassword) throw new Error("newPassword required")
+        if (oldPassword === newPassword) throw new Error("oldPassword and newPassword must not match")
+        if (!this.authToken) throw new Error("User must be authenticated to reset password")
+
+        const uInfo = await this.get_user_info()
+        const account = this.decrypt_account(oldPassword)
+
+        const encryptedKey = account.encrypt(newPassword + uInfo.userSalt) // leave salt unchanged 
+        const hashedPassword = this.web3.utils.sha3(newPassword)
+
+        await this.update_encryption_info(encryptedKey, hashedPassword)
+
+        // reauthenticate with updated info
+        await this.authenticate(this.email, newPassword)
+    }
+
     // convenience method for signing an arbitrary string
     // user address can be recovered from signature by utils.ecRecover
     this.sign_string = function(string, password) {
@@ -529,7 +572,7 @@ exports.init = function(debug, debugHost) {
             throw new Error("Password is required to generate key")
         }
         const account = this.decrypt_account(password)
-        
+
         const hash = crypto.createHash("sha512")
         hash.update(account.privateKey);
         return hash.digest().slice(0, 32) // key for aes-256 must be 32 bytes
