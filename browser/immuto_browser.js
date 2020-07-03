@@ -526,15 +526,10 @@ exports.init = function(debug, debugHost) {
         if (!password) {
             throw new Error("Password is required to generate key")
         }
-
-        const salt = this.salt
-        if (!salt) {
-            throw new Error("User must be authenticated to generate key")
-        }
-
-        // cannot be SHA256, or Immuto backend could decrypt user data on login with current auth scheme
+        const account = this.decrypt_account(password)
+        
         const hash = crypto.createHash("sha512")
-        hash.update(password + salt);
+        hash.update(account.privateKey);
         return hash.digest().slice(0, 32) // key for aes-256 must be 32 bytes
     }
 
