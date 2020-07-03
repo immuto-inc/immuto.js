@@ -264,12 +264,14 @@ async function test_example_usage() {
     }
 }
 
+
 async function test_password_reset() {
     const resetEmail = "test@test.com"
     const originalPassword = "testpassword"
     const newpassword = "newpassword"
 
     let personalRecord = ""
+    let changedPersonalRecord = ""
     let sharedRecord = ""
     const personalContent = "Personal Record Content"
     const sharedContent = "Shared Record Content"
@@ -297,7 +299,15 @@ async function test_password_reset() {
         console.log("Passed decryption before password reset (both personal and shared)")
 
 
+
         await im.reset_password(originalPassword, newpassword)
+
+        changedPersonalRecord = await im.upload_file_data(personalContent, "test", newpassword)
+        let changedDownload = await im.download_file_for_recordID(changedPersonalRecord, newpassword, 0, true)
+        if (personalContent !== changedDownload.data) {
+            throw new Error("Uploaded content does not match downloaded content")
+        }
+
         let rePersonalDownload = await im.download_file_for_recordID(personalRecord, newpassword, 0, true)
         if (personalContent !== rePersonalDownload.data) {
             throw new Error("Uploaded content does not match downloaded content")
@@ -308,7 +318,13 @@ async function test_password_reset() {
         }
         console.log("Passed decryption after password reset (both personal and shared)")
 
+
+
         await im.reset_password(newpassword, originalPassword) // reset back to original
+        let reChangedDownload = await im.download_file_for_recordID(changedPersonalRecord, originalPassword, 0, true)
+        if (personalContent !== reChangedDownload.data) {
+            throw new Error("Uploaded content does not match downloaded content")
+        }
         let rerePersonalDownload = await im.download_file_for_recordID(personalRecord, originalPassword, 0, true)
         if (personalContent !== rerePersonalDownload.data) {
             throw new Error("Uploaded content does not match downloaded content")
