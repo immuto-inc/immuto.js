@@ -58,14 +58,30 @@ async function run_tests(email, password) {
     }
 }
 
+function buffers_are_equal(b1, b2) {
+    if (b1.length !== b2.length) return false
+
+    for (let i = 0; i < b1.length; i++) {
+        if (b1[i] !== b2[i]) return false
+    }
+
+    return true
+}
+
 async function test_utils() {
     const testStrings = [
         "test string",
         "a",
     ]
-    for (let testString of testStrings)
+    let buffers = []
+    for (let testString of testStrings){
+        buffers.push(im.str2ab(testString))
         assert_throw(testString === im.ab2str(im.str2ab(testString)), `testString ${testString} failed to pass ab/str conversion invariant`)
-
+    }
+    for (let testBuffer of buffers) {
+        assert_throw(buffers_are_equal(testBuffer, im.str2ab(im.ab2str(testBuffer))), `testBuffer ${testBuffer} failed to pass ab/str conversion invariant`)
+    }
+    
     console.log("Passed utils tests")
 }
 
