@@ -518,6 +518,12 @@ async function test_bad_usage() {
             expectedError: "No encryptedKey given",
             requiresAuth: true,
         },
+        {
+            name: "Store key bad recordID",
+            badUsage: () => {return im.store_user_key_for_record("sebass@immuto.io", "0x6000000", 'encryptedKey')},
+            expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
+            requiresAuth: true,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
