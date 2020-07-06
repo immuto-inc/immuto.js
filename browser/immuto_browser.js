@@ -707,6 +707,7 @@ exports.init = function(debug, debugHost) {
             if (!userEmail) { reject("No userEmail given"); return; }
             if (!recordID) { reject("No recordID given"); return; }
             if (!encryptedKey) { reject("No encryptedKey given"); return; }
+            this.utils.parse_record_ID(recordID) // throws error on bad record
 
             const url =  this.host + "/set-key-for-record"
             let form = new_Form()
