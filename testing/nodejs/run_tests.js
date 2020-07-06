@@ -507,6 +507,22 @@ async function test_bad_usage() {
             expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
             requiresAuth: true,
         },
+        {
+            name: "Store key no email",
+            badUsage: () => {return im.store_user_key_for_record()},
+            expectedError: "No userEmail given"
+        },
+        {
+            name: "Store key no recordID",
+            badUsage: () => {return im.store_user_key_for_record("sebass@immuto.io")},
+            expectedError: "No recordID given"
+        },
+        {
+            name: "Store key no encryptedKey",
+            badUsage: () => {return im.store_user_key_for_record("sebass@immuto.io", "0x8DDAAf02468b0b24C2079971BBE56db2C16F509c000000")},
+            expectedError: "No encryptedKey given",
+            requiresAuth: true,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
