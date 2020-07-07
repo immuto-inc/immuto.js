@@ -37,9 +37,11 @@ async function run_tests(email, password) {
         // await test_org_member_registration()
         // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
+
         await test_password_reset()
 
         await data_management_tests()
+        await test_search()
         await test_encryption()
         if (IN_BROWSER) await test_file_upload()  
         if (IN_BROWSER) await test_sharing()      
@@ -138,6 +140,28 @@ async function data_management_tests() {
         assert_throw(verified.email === im.email, `Verified email ${verified.email} does not match auth email ${im.email}`)
 
         console.log("Passed editable data management test")
+    } catch(err) {
+        throw err
+    }
+}
+
+async function test_search() {
+    let content = IN_BROWSER ? im.web3.utils.randomHex(10) : crypto.randomBytes(10)
+    let recordName = "Search Record"
+    let type = "basic" // alternatively, could be 'editable'
+    let desc = "Record Description ?q=5&heloo&&=" // optional
+    
+    try {
+        const recordID = await im.create_data_management(content, recordName, type, password, desc)
+        const searchResult = await im.search_records_by_content(content)
+
+        assert_throw(searchResult.records && searchResult.records.length, `searchResult: ${searchResult} missing records: ${searchResult.records}`)
+
+        const match = searchResult.records[0]
+
+        assert_throw(match.contractAddr === recordID, `Resulting recordID: ${match.contractAddr} does not match expected: ${recordID}`)
+
+        console.log("Passed search tests")
     } catch(err) {
         throw err
     }
