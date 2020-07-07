@@ -887,6 +887,14 @@ exports.init = function(debug, debugHost) {
     }
 
     this.search_records_by_content = function(fileContent) {
+        if (typeof fileContent !== "string") {
+            try {
+                fileContent = this.ab2str(fileContent)
+            } catch(err) {
+                throw new Error(`Failed to convert data to string: ${err}`)
+            }
+        }
+
         return this.search_records_by_hash(this.web3.eth.accounts.hashMessage(fileContent))
     }
 
