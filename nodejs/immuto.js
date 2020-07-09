@@ -876,7 +876,12 @@ exports.init = function(debug, debugHost) {
             http.setRequestHeader('Accept', 'application/json, text/javascript');
             http.onreadystatechange = function() {
                 if (http.readyState === 4 && http.status === 200) {
-                    resolve({records: JSON.parse(http.responseText), hash})
+                    let records = JSON.parse(http.responseText)
+                    for (let i = 0; i < records.length; i++) {
+                        records[i].recordID = records[i].contractAddr // so contractAddr remains internal language
+                    }
+
+                    resolve({records, hash})
                 } else if (http.readyState === 4) {
                     reject(http.responseText)
                 }
@@ -894,7 +899,7 @@ exports.init = function(debug, debugHost) {
                 throw new Error(`Failed to convert data to string: ${err}`)
             }
         }
- 
+
         return this.search_records_by_hash(this.web3.eth.accounts.hashMessage(fileContent))
     }
 

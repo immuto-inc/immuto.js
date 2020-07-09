@@ -878,7 +878,12 @@ exports.init = function(debug, debugHost) {
             http.setRequestHeader('Accept', 'application/json, text/javascript');
             http.onreadystatechange = function() {
                 if (http.readyState === 4 && http.status === 200) {
-                    resolve({records: JSON.parse(http.responseText), hash})
+                    let records = JSON.parse(http.responseText)
+                    for (let i = 0; i < records.length; i++) {
+                        records[i].recordID = records[i].contractAddr // so contractAddr remains internal language
+                    }
+
+                    resolve({records, hash})
                 } else if (http.readyState === 4) {
                     reject(http.responseText)
                 }
