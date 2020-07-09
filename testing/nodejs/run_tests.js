@@ -162,7 +162,8 @@ async function test_search() {
 
         const match = searchResult.records[0]
 
-        assert_throw(match.contractAddr === recordID, `Resulting recordID: ${match.contractAddr} does not match expected: ${recordID}`)
+        assert_throw(match.contractAddr === recordID, `Resulting recordID (as .contractAddr): ${match.contractAddr} does not match expected: ${recordID}`)
+        assert_throw(match.recordID === recordID, `Resulting recordID: ${match.recordID} does not match expected: ${recordID}`)
 
         console.log("Passed search tests")
     } catch(err) {
