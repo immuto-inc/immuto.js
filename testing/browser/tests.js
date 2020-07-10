@@ -147,18 +147,28 @@ async function data_management_tests() {
 
 async function test_search() {
     let content = IN_BROWSER ? im.web3.utils.randomHex(10) : crypto.randomBytes(10)
+    let updated = IN_BROWSER ? im.web3.utils.randomHex(10) : crypto.randomBytes(10)
     let recordName = "Search Record"
-    let type = "basic" // alternatively, could be 'editable'
+    let type = "editable" // alternatively, could be 'editable'
     let desc = "Record Description ?q=5&heloo&&=" // optional
     
     try {
         const recordID = await im.create_data_management(content, recordName, type, password, desc)
-        const searchResult = await im.search_records_by_content(content)
-
+        
+        let searchResult = await im.search_records_by_content(content)
         assert_throw(searchResult.records && searchResult.records.length, `searchResult: ${searchResult} missing records: ${searchResult.records}`)
 
-        const match = searchResult.records[0]
+        let match = searchResult.records[0]
+        assert_throw(match.contractAddr === recordID, `Resulting recordID (as .contractAddr): ${match.contractAddr} does not match expected: ${recordID}`)
+        assert_throw(match.recordID === recordID, `Resulting recordID: ${match.recordID} does not match expected: ${recordID}`)
 
+
+        await im.update_data_management(recordID, updated, password)
+
+        searchResult = await im.search_records_by_content(content)
+        assert_throw(searchResult.records && searchResult.records.length, `searchResult: ${searchResult} missing records: ${searchResult.records}`)
+
+        match = searchResult.records[0]
         assert_throw(match.contractAddr === recordID, `Resulting recordID (as .contractAddr): ${match.contractAddr} does not match expected: ${recordID}`)
         assert_throw(match.recordID === recordID, `Resulting recordID: ${match.recordID} does not match expected: ${recordID}`)
 
