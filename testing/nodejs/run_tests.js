@@ -176,6 +176,11 @@ async function test_search() {
         assert_throw(match.contractAddr === recordID, `Resulting recordID (as .contractAddr): ${match.contractAddr} does not match expected: ${recordID}`)
         assert_throw(match.recordID === recordID, `Resulting recordID: ${match.recordID} does not match expected: ${recordID}`)
 
+
+        await im.create_data_management(content, recordName, type, password, desc)
+        searchResult = await im.search_records_by_content(content)
+        assert_throw(searchResult.records.length === 2, `Expecting to find 2 matching records, got ${searchResult.records}`)
+
         console.log("Passed search tests")
     } catch(err) {
         throw err
