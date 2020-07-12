@@ -859,6 +859,11 @@ exports.init = function(debug, debugHost) {
         return new Promise((resolve, reject) => {
             if (!recordID) { reject("No recordID given"); return; }
             if (!password) { reject("No password given"); return; }
+            try {
+                this.utils.parse_record_ID(recordID)
+            } catch(err) {
+                reject(err); return;
+            }
 
             this.download_file_for_recordID(recordID, password, version, true)
             .then(file => resolve(file.data))
@@ -930,6 +935,11 @@ exports.init = function(debug, debugHost) {
     this.get_info_for_recordID = function(recordID) {
         return new Promise((resolve, reject) => {
             if (!recordID) { reject("No recordID given"); return; }
+            try {
+                this.utils.parse_record_ID(recordID)
+            } catch(err) {
+                reject(err); return;
+            }
 
             let accessURL = this.host + "/record-for-user?recordID=" + recordID 
             accessURL += "&authToken=" + this.authToken
@@ -1089,6 +1099,12 @@ exports.init = function(debug, debugHost) {
         return new Promise((resolve, reject) => {
             if (!recordID) { reject("No recordID given"); return; }
             if (!shareEmail) { reject("No shareEmail given"); return; }
+
+            try {
+                this.utils.parse_record_ID(recordID)
+            } catch(err) {
+                reject(err); return;
+            }
 
             var xhr = new_HTTP();
 
