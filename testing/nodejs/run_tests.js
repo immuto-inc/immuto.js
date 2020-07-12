@@ -150,8 +150,10 @@ async function data_management_tests() {
 }
 
 async function test_search() {
-    let content = IN_BROWSER ? im.web3.utils.randomHex(10) : crypto.randomBytes(10)
-    let updated = IN_BROWSER ? im.web3.utils.randomHex(10) : crypto.randomBytes(10)
+    const entropy = 32
+    let content    = IN_BROWSER ? im.web3.utils.randomHex(entropy) : crypto.randomBytes(entropy)
+    let updated    = IN_BROWSER ? im.web3.utils.randomHex(entropy) : crypto.randomBytes(entropy)
+    let norecords  = IN_BROWSER ? im.web3.utils.randomHex(entropy) : crypto.randomBytes(entropy)
     let recordName = "Search Record"
     let type = "editable" // alternatively, could be 'editable'
     let desc = "Record Description ?q=5&heloo&&=" // optional
@@ -180,6 +182,11 @@ async function test_search() {
         await im.create_data_management(content, recordName, type, password, desc)
         searchResult = await im.search_records_by_content(content)
         assert_throw(searchResult.records.length === 2, `Expecting to find 2 matching records, got ${searchResult.records}`)
+
+
+        searchResult = await im.search_records_by_content(norecords)
+        assert_throw(searchResult.records.length === 0, `Expecting to find no matching records, got ${searchResult.records}`)
+
 
         console.log("Passed search tests")
     } catch(err) {
