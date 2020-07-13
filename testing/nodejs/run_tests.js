@@ -184,6 +184,11 @@ async function test_search() {
         assert_throw(searchResult.records.length === 2, `Expecting to find 2 matching records, got ${searchResult.records}`)
 
 
+        searchResult = await im.search_records_by_content(updated)
+        assert_throw(match.contractAddr === recordID, `Resulting recordID (as .contractAddr): ${match.contractAddr} does not match expected: ${recordID}`)
+        assert_throw(searchResult.records.length === 1, `Expecting to find 2 matching records, got ${searchResult.records}`)
+
+
         searchResult = await im.search_records_by_content(norecords)
         assert_throw(searchResult.records.length === 0, `Expecting to find no matching records, got ${searchResult.records}`)
 
