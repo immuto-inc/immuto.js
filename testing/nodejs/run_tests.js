@@ -581,6 +581,24 @@ async function test_bad_usage() {
             expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
             requiresAuth: true,
         },
+        {
+            name: "Share record bad recordID",
+            badUsage: () => {return im.share_record_access("0x6000000", "sebass@immuto.io")},
+            expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
+            requiresAuth: true,
+        },
+        {
+            name: "Get record info bad recordID",
+            badUsage: () => {return im.get_info_for_recordID("0x6000000")},
+            expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
+            requiresAuth: true,
+        },
+        {
+            name: "download_file_for_recordID bad recordID",
+            badUsage: () => {return im.download_file_for_recordID("0x6000000", "password")},
+            expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
+            requiresAuth: true,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
