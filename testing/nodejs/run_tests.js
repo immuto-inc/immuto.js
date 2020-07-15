@@ -36,6 +36,7 @@ async function run_tests(email, password) {
     try {     
         await test_utils()
         await test_bad_usage()
+        return
         await im.authenticate(email, password) 
         
         // await test_org_member_registration()
@@ -597,6 +598,18 @@ async function test_bad_usage() {
             name: "download_file_for_recordID bad recordID",
             badUsage: () => {return im.download_file_for_recordID("0x6000000", "password")},
             expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
+            requiresAuth: true,
+        },
+        {
+            name: "utils.parse_record_ID bad recordID",
+            badUsage: () => {return im.utils.parse_record_ID("0x6000000")},
+            expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
+            requiresAuth: true,
+        },
+        {
+            name: "utils.parse_record_ID no recordID",
+            badUsage: () => {return im.utils.parse_record_ID()},
+            expectedError: "recordID is required",
             requiresAuth: true,
         },
     ]

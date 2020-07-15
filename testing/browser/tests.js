@@ -594,6 +594,18 @@ async function test_bad_usage() {
             expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
             requiresAuth: true,
         },
+        {
+          name: "utils.parse_record_ID bad recordID",
+            badUsage: () => {return im.utils.parse_record_ID("0x6000000")},
+            expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
+            requiresAuth: true,
+        },
+        {
+            name: "utils.parse_record_ID no recordID",
+            badUsage: () => {return im.utils.parse_record_ID()},
+            expectedError: "recordID is required",
+            requiresAuth: true,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
