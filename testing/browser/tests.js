@@ -2,10 +2,13 @@ const IN_BROWSER = true;
 const IMMUTO_URL = "http://localhost:8005"
 let im = Immuto.init(true, IMMUTO_URL)
 
-let email = IN_BROWSER ? window.localStorage.email : process.env.EMAIL
-let password = IN_BROWSER ? window.localStorage.password : process.env.PASSWORD
+const email = IN_BROWSER ? window.localStorage.email : process.env.EMAIL
+const password = IN_BROWSER ? window.localStorage.password : process.env.PASSWORD
+const email2 = IN_BROWSER ? window.localStorage.email2 : process.env.EMAIL2
+const password2 = IN_BROWSER ? window.localStorage.password2 : process.env.PASSWORD2
 
-if (!(email && password)) {
+
+if (!(email && password && email2 && password2)) {
     const errMessage = "Email and password are required"
     if (!IN_BROWSER) {
         console.error(errMessage)
@@ -84,8 +87,8 @@ async function test_utils() {
 }
 
 async function test_org_member_registration() {
-    const newUserEmail = "test@test.com"
-    const userPassword = "testpassword"
+    const newUserEmail = email2
+    const userPassword = password2
     
     try {
         const registrationToken = await im.permission_new_user(newUserEmail)
@@ -273,11 +276,11 @@ async function test_sharing() {
         }
         assert_throw(verified.email === im.email, `Verified email ${verified.email} does not match auth email ${im.email}`)
 
-        await im.share_record(recordID, "test@test.com", password)
+        await im.share_record(recordID, email2, password)
 
         await im.deauthenticate()
-        await im.authenticate("test@test.com", "testpassword")
-        data = await im.download_file_data(recordID, "testpassword")
+        await im.authenticate(email2, password2)
+        data = await im.download_file_data(recordID, password2)
         if (fileContent !== data) {
             throw new Error("Uploaded content does not match downloaded content for shared recipient")
         }
@@ -301,8 +304,6 @@ async function test_example_usage() {
     try {
         const email1 = email
         const pass1 = password
-        const email2 = "test@test.com"
-        const pass2 = "testpassword"
         await im.authenticate(email1, pass1) // authenticate with user 1
 
         const fileContent = "example file content"
@@ -316,9 +317,9 @@ async function test_example_usage() {
 
         await im.share_record(recordID, email2, pass1)
         await im.deauthenticate()
-        await im.authenticate(email2, pass2) // authenticate with user 2
+        await im.authenticate(email2, password2) // authenticate with user 2
 
-        data = await im.download_file_data(recordID, pass2)
+        data = await im.download_file_data(recordID, password2)
         if (fileContent !== data) {
             console.log("Failed to download shared record")
         }
@@ -329,8 +330,8 @@ async function test_example_usage() {
 }
 
 async function test_password_reset() {
-    const resetEmail = "test@test.com"
-    const originalPassword = "testpassword"
+    const resetEmail = email2
+    const originalPassword = password2
     const newpassword = "newpassword"
 
     let personalRecord = ""
