@@ -607,6 +607,12 @@ async function test_bad_usage() {
             expectedError: "recordID is required",
             requiresAuth: true,
         },
+        {
+            name: "shardIndex_to_hex too big",
+            badUsage: () => {return im.utils.shardIndex_to_hex(16777216)},
+            expectedError: "`hexString: 16777216 exceeds width of ${SHARD_LENGTH}`",
+            requiresAuth: true,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
@@ -616,6 +622,7 @@ async function test_bad_usage() {
             throw new Error(`Failed to catch bad usage: ${name}`)
         } catch(err) {
             const message = err.message || err // thrown error || promise rejection
+            if (message.startsWith("Failed to catch bad usage:")) throw err;
             assert_throw(message === expectedError, `'${message}' does not match expected error: '${expectedError}'`)
         }
     }
