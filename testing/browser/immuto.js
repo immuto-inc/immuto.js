@@ -176,10 +176,14 @@ exports.init = function(debug, debugHost) {
 
         shardIndex_to_hex: (shardIndex) => {
             const SHARD_LENGTH = 6
-            let hexString = (shardIndex).toString(16)
-            if (hexString > 16777215) { // ffffff
-                throw new Error(`hexString: ${hexString} exceeds width of ${SHARD_LENGTH}`)
+            if (shardIndex > 16777215) { // ffffff
+                throw new Error(`shardIndex: ${shardIndex} exceeds width of ${SHARD_LENGTH}`)
             }
+            if (shardIndex < 0) {
+                throw new Error(`shardIndex must be a positive integer`)
+            }
+
+            let hexString = (shardIndex).toString(16)
 
             while (hexString.length < SHARD_LENGTH) {
                 hexString = "0" + hexString

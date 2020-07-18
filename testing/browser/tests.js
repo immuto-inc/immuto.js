@@ -610,7 +610,7 @@ async function test_bad_usage() {
         {
             name: "shardIndex_to_hex too big",
             badUsage: () => {return im.utils.shardIndex_to_hex(16777216)},
-            expectedError: "`hexString: 16777216 exceeds width of ${SHARD_LENGTH}`",
+            expectedError: `shardIndex: 16777216 exceeds width of 6`,
             requiresAuth: true,
         },
     ]
