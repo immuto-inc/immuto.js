@@ -617,6 +617,12 @@ async function test_bad_usage() {
             expectedError: `shardIndex: 16777216 exceeds width of 6`,
             requiresAuth: true,
         },
+        {
+            name: "shardIndex_to_hex negative input",
+            badUsage: () => {return im.utils.shardIndex_to_hex(-1)},
+            expectedError: `shardIndex must be a positive integer`,
+            requiresAuth: true,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
