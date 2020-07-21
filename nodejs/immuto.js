@@ -182,7 +182,7 @@ exports.init = function(debug, debugHost) {
             }
 
 
-            let hexString = (shardIndex).toString(16)
+            let hexString = Number(shardIndex).toString(16)
 
             while (hexString.length < SHARD_LENGTH) {
                 hexString = "0" + hexString

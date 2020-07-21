@@ -181,7 +181,7 @@ exports.init = function(debug, debugHost) {
                 throw new Error(`shardIndex must be a positive integer`)
             }
 
-            let hexString = (shardIndex).toString(16)
+            let hexString = Number(shardIndex).toString(16)
 
             while (hexString.length < SHARD_LENGTH) {
                 hexString = "0" + hexString
