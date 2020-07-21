@@ -87,7 +87,17 @@ async function test_utils() {
         assert_throw(buffers_are_equal(testBuffer, im.str2ab(im.ab2str(testBuffer))), `testBuffer ${testBuffer} failed to pass ab/str conversion invariant`)
     }
     
-    assert_throw(im.utils.shardIndex_to_hex(0) === "000000", "shardIndex_to_hex on 0 did not return 000000")
+    const testShardIndices = {
+        0: "000000",
+        1: "000001",
+        10: "00000a",
+        16777215: "ffffff",
+    }
+    for (const shardIndex in testShardIndices) {
+        const expected = testShardIndices[shardIndex]
+        const result = im.utils.shardIndex_to_hex(shardIndex)
+        assert_throw(result === expected, `shardIndex_to_hex on ${shardIndex} did not return ${expected}, got ${result}`)
+    }
 
     console.log("Passed utils tests")
 }
