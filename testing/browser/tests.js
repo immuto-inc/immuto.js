@@ -83,6 +83,8 @@ async function test_utils() {
         assert_throw(buffers_are_equal(testBuffer, im.str2ab(im.ab2str(testBuffer))), `testBuffer ${testBuffer} failed to pass ab/str conversion invariant`)
     }
     
+    assert_throw(im.utils.shardIndex_to_hex(0) === "000000", "shardIndex_to_hex on 0 did not return 000000")
+
     console.log("Passed utils tests")
 }
 
