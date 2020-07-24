@@ -96,6 +96,9 @@ async function test_utils() {
 
         const original = im.utils.hex_to_shardIndex(result)
         assert_throw(Number(shardIndex) === original, `Failed inverse property of hex_to_shardIndex for ${shardIndex}, got ${original}`)
+    
+        const inversed = im.utils.shardIndex_to_hex(im.utils.hex_to_shardIndex(expected))
+        assert_throw(inversed === expected, `Failed inverse property of shardIndex_to_hex for ${expected}, got ${inversed}`)
     }
 
     console.log("Passed utils tests")
