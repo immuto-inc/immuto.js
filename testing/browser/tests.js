@@ -617,25 +617,31 @@ async function test_bad_usage() {
           name: "utils.parse_record_ID bad recordID",
             badUsage: () => {return im.utils.parse_record_ID("0x6000000")},
             expectedError: "Invalid recordID: 0x6000000, reason: length not 48",
-            requiresAuth: true,
         },
         {
             name: "utils.parse_record_ID no recordID",
             badUsage: () => {return im.utils.parse_record_ID()},
             expectedError: "recordID is required",
-            requiresAuth: true,
         },
         {
             name: "shardIndex_to_hex too big",
             badUsage: () => {return im.utils.shardIndex_to_hex(16777216)},
             expectedError: `shardIndex: 16777216 exceeds width of 6`,
-            requiresAuth: true,
         },
         {
             name: "shardIndex_to_hex negative input",
             badUsage: () => {return im.utils.shardIndex_to_hex(-1)},
             expectedError: `shardIndex must be a positive integer`,
-            requiresAuth: true,
+        },
+        {
+            name: "hex_to_shardIndex no hexString",
+            badUsage: () => {return im.utils.hex_to_shardIndex()},
+            expectedError: `hexString is required`,
+        },
+        {
+            name: "hex_to_shardIndex invalid type",
+            badUsage: () => {return im.utils.hex_to_shardIndex(45)},
+            expectedError: `hexString must be a string, got ${typeof 45}`,
         },
     ]
     
