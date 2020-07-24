@@ -193,6 +193,9 @@ exports.init = function(debug, debugHost) {
         },
 
         hex_to_shardIndex: (hexString) => {
+            if (!hexString) throw new Error("hexString is required")
+            if (typeof hexString !== "string") throw new Error(`hexString must be a string, got ${typeof hexString}`)
+                
             return parseInt(hexString, 16)
         }
     }
