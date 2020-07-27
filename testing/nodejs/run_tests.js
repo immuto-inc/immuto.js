@@ -642,6 +642,16 @@ async function test_bad_usage() {
             badUsage: () => {return im.utils.hex_to_shardIndex()},
             expectedError: `hexString is required`,
         },
+        {
+            name: "hex_to_shardIndex invalid type (number)",
+            badUsage: () => {return im.utils.hex_to_shardIndex(45)},
+            expectedError: `hexString must be a string, got ${typeof 45}`,
+        },
+        {
+            name: "hex_to_shardIndex invalid type (object)",
+            badUsage: () => {return im.utils.hex_to_shardIndex({})},
+            expectedError: `hexString must be a string, got ${typeof {}}`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
