@@ -648,6 +648,11 @@ async function test_bad_usage() {
             badUsage: () => {return im.utils.hex_to_shardIndex({})},
             expectedError: `hexString must be a string, got ${typeof {}}`,
         },
+        {
+            name: "decrypt_account no password",
+            badUsage: () => {return im.decrypt_account()},
+            expectedError: `password is required`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
