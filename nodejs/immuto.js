@@ -200,6 +200,8 @@ exports.init = function(debug, debugHost) {
     }
 
     this.decrypt_account = function(password) {
+        if (!password) throw new Error("password is required")
+    
         try {
             return this.web3.eth.accounts.decrypt( 
                 this.encryptedKey, 

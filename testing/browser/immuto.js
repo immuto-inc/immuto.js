@@ -195,12 +195,14 @@ exports.init = function(debug, debugHost) {
         hex_to_shardIndex: (hexString) => {
             if (!hexString) throw new Error("hexString is required")
             if (typeof hexString !== "string") throw new Error(`hexString must be a string, got ${typeof hexString}`)
-                
+
             return parseInt(hexString, 16)
         }
     }
 
     this.decrypt_account = function(password) {
+        if (!password) throw new Error("password is required")
+
         try {
             return this.web3.eth.accounts.decrypt( 
                 this.encryptedKey, 
