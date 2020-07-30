@@ -34,12 +34,7 @@ exports.init = function(debug, debugHost) {
             this.host = DEV_ENDPOINT // reasonable default
     }
 
-    try {
-        this.web3 = new Web3(PROD_ENDPIONT) // Dummy provider because required on init now
-    } catch(err) {
-        console.error(err)
-        throw new Error("Web3js is a required dependency of the Immuto API. Make sure it is included wherever immuto.js is present.")
-    }
+    this.web3 = new Web3(PROD_ENDPIONT) // Dummy provider because required on init now
     
     // for web3 account management
     this.salt = ""
