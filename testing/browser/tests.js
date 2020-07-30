@@ -658,6 +658,11 @@ async function test_bad_usage() {
             badUsage: () => {return im.decrypt_account("invalid password")},
             expectedError: `Incorrect password`,
         },
+        {
+            name: "get_registration_token no address",
+            badUsage: () => {return im.get_registration_token()},
+            expectedError: `User's address is required`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
