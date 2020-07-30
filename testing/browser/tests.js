@@ -653,6 +653,11 @@ async function test_bad_usage() {
             badUsage: () => {return im.decrypt_account()},
             expectedError: `password is required`,
         },
+        {
+            name: "decrypt_account invalid password",
+            badUsage: () => {return im.decrypt_account("invalid password")},
+            expectedError: `Incorrect password`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
