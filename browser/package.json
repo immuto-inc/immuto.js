@@ -11,7 +11,8 @@
   "dependencies": {
     "eth-sig-util": "^2.5.3",
     "node-rsa": "^1.1.1",
-    "web3": "^1.2.11"
+    "web3": "^1.2.11",
+    "xmlhttprequest": "^1.8.0"
   },
   "devDependencies": {
     "eslint": "^7.5.0"

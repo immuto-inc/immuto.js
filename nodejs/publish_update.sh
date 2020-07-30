@@ -2,7 +2,7 @@
 echo "Deploying new version to NPM"
 echo "WARNING: This script will run git commit and push to any added files"
 echo "Current version information"
-npm view immuto-backend
+npm view immuto-sdk
 echo 
 
 echo "Enter new version number for update"
