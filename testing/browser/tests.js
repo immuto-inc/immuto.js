@@ -673,6 +673,11 @@ async function test_bad_usage() {
             badUsage: () => {return im.register_user(email)},
             expectedError: `User password is required`,
         },
+        {
+            name: "permission_new_user no email",
+            badUsage: () => {return im.permission_new_user()},
+            expectedError: `User email is required`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
