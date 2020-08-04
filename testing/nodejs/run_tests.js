@@ -682,6 +682,21 @@ async function test_bad_usage() {
             badUsage: () => {return im.permission_new_user()},
             expectedError: `User email is required`,
         },
+        {
+            name: "reset_password no oldPassword",
+            badUsage: () => {return im.reset_password()},
+            expectedError: `oldPassword required`,
+        },
+        {
+            name: "reset_password no newPassword",
+            badUsage: () => {return im.reset_password("p1")},
+            expectedError: `newPassword required`,
+        },
+        {
+            name: "reset_password passwords match",
+            badUsage: () => {return im.reset_password("p1", "p1")},
+            expectedError: `oldPassword and newPassword must not match`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
