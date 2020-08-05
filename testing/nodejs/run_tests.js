@@ -697,6 +697,16 @@ async function test_bad_usage() {
             badUsage: () => {return im.reset_password("p1", "p1")},
             expectedError: `oldPassword and newPassword must not match`,
         },
+        {
+            name: "sign_string no string",
+            badUsage: () => {return im.sign_string()},
+            expectedError: `string is required for signing`,
+        },
+        {
+            name: "sign_string no password",
+            badUsage: () => {return im.sign_string("p1")},
+            expectedError: `password is required to sign string`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {

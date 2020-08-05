@@ -34,7 +34,7 @@ function assert_throw(assertion, message) {
 async function run_tests(email, password) {
     try {       
         await test_utils()
-        await test_bad_usage(); return;
+        await test_bad_usage()
         await im.authenticate(email, password) 
         
         // await test_org_member_registration()
@@ -692,6 +692,16 @@ async function test_bad_usage() {
             name: "reset_password passwords match",
             badUsage: () => {return im.reset_password("p1", "p1")},
             expectedError: `oldPassword and newPassword must not match`,
+        },
+        {
+            name: "sign_string no string",
+            badUsage: () => {return im.sign_string()},
+            expectedError: `string is required for signing`,
+        },
+        {
+            name: "sign_string no password",
+            badUsage: () => {return im.sign_string("p1")},
+            expectedError: `password is required to sign string`,
         },
     ]
     
