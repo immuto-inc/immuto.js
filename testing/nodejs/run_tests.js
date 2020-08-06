@@ -707,6 +707,26 @@ async function test_bad_usage() {
             badUsage: () => {return im.sign_string("p1")},
             expectedError: `password is required to sign string`,
         },
+        {
+            name: "upload_file_for_record no file object",
+            badUsage: () => {return im.upload_file_for_record()},
+            expectedError: `No file given`,
+        },
+        {
+            name: "upload_file_for_record no content",
+            badUsage: () => {return im.upload_file_for_record("p1")},
+            expectedError: `No fileContent given`,
+        },
+        {
+            name: "upload_file_for_record no recordID",
+            badUsage: () => {return im.upload_file_for_record("p1", "1")},
+            expectedError: `No recordID given`,
+        },
+        {
+            name: "upload_file_for_record no password",
+            badUsage: () => {return im.upload_file_for_record("p1", "1", "2")},
+            expectedError: `No password given`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
