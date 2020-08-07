@@ -727,6 +727,16 @@ async function test_bad_usage() {
             badUsage: () => {return im.upload_file_for_record("p1", "1", "2")},
             expectedError: `No password given`,
         },
+        {
+            name: "search by hash no hash",
+            badUsage: () => {return im.search_records_by_hash()},
+            expectedError: `No hash given`,
+        },
+        {
+            name: "search by content no string",
+            badUsage: () => {return im.search_records_by_content()},
+            expectedError: `No fileContent given`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
