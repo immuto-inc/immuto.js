@@ -903,6 +903,8 @@ exports.init = function(debug, debugHost) {
     }
 
     this.search_records_by_content = function(fileContent) {
+        if (!fileContent) throw new Error("No fileContent given")
+
         if (typeof fileContent !== "string") {
             try {
                 fileContent = this.ab2str(fileContent)
