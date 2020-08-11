@@ -742,6 +742,16 @@ async function test_bad_usage() {
             badUsage: () => {return im.build_full_URL()},
             expectedError: `No remoteURL given`,
         },
+        {
+            name: "decrypt_fileKey_symmetric no keyInfo",
+            badUsage: () => {return im.decrypt_fileKey_symmetric()},
+            expectedError: `No encryptedKeyInfo given`,
+        },
+        {
+            name: "decrypt_fileKey_symmetric no password",
+            badUsage: () => {return im.decrypt_fileKey_symmetric("keyinfo")},
+            expectedError: `No password given`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
