@@ -38,7 +38,7 @@ function assert_throw(assertion, message) {
 async function run_tests(email, password) {
     try {       
         await test_utils()
-        await test_bad_usage()
+        await test_bad_usage();
         await im.authenticate(email, password) 
         
         // await test_org_member_registration()
@@ -736,6 +736,11 @@ async function test_bad_usage() {
             name: "search by content no string",
             badUsage: () => {return im.search_records_by_content()},
             expectedError: `No fileContent given`,
+        },
+        {
+            name: "build_full_URL no URL",
+            badUsage: () => {return im.build_full_URL()},
+            expectedError: `No remoteURL given`,
         },
     ]
     

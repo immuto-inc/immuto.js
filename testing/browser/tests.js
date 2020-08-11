@@ -733,6 +733,11 @@ async function test_bad_usage() {
             badUsage: () => {return im.search_records_by_content()},
             expectedError: `No fileContent given`,
         },
+        {
+            name: "build_full_URL no URL",
+            badUsage: () => {return im.build_full_URL()},
+            expectedError: `No remoteURL given`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
