@@ -748,6 +748,16 @@ async function test_bad_usage() {
             badUsage: () => {return im.decrypt_fileKey_symmetric("keyinfo")},
             expectedError: `No password given`,
         },
+        {
+            name: "decrypt_fileKey_asymmetric no keyInfo",
+            badUsage: () => {return im.decrypt_fileKey_asymmetric()},
+            expectedError: `No encryptedKeyInfo given`,
+        },
+        {
+            name: "decrypt_fileKey_asymmetric no password",
+            badUsage: () => {return im.decrypt_fileKey_asymmetric("keyinfo")},
+            expectedError: `No password given`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
