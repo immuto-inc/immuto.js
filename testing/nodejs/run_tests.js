@@ -628,6 +628,11 @@ async function test_bad_usage() {
             expectedError: "recordID is required",
         },
         {
+            name: "shardIndex_to_hex no args",
+            badUsage: () => {return im.utils.shardIndex_to_hex()},
+            expectedError: `shardIndex is required`,
+        },
+        {
             name: "shardIndex_to_hex too big",
             badUsage: () => {return im.utils.shardIndex_to_hex(16777216)},
             expectedError: `shardIndex: 16777216 exceeds width of 6`,

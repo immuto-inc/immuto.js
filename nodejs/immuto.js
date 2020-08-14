@@ -168,7 +168,7 @@ exports.init = function(debug, debugHost) {
         },
 
         shardIndex_to_hex: (shardIndex) => {
-            if (!shardIndex) throw new Error("shardIndex is required")
+            if (shardIndex !== 0 && !shardIndex) throw new Error("shardIndex is required")
 
             const SHARD_LENGTH = 6
             if (shardIndex > 16777215) { // ffffff
