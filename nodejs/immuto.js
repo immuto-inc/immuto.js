@@ -168,6 +168,8 @@ exports.init = function(debug, debugHost) {
         },
 
         shardIndex_to_hex: (shardIndex) => {
+            if (!shardIndex) throw new Error("shardIndex is required")
+
             const SHARD_LENGTH = 6
             if (shardIndex > 16777215) { // ffffff
                 throw new Error(`shardIndex: ${shardIndex} exceeds width of ${SHARD_LENGTH}`)
