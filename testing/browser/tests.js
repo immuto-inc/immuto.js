@@ -773,6 +773,16 @@ async function test_bad_usage() {
             badUsage: () => {return im.key_to_string({})},
             expectedError: `Given keyInfo has no iv field`,
         },
+        {
+            name: "iv_to_string no iv",
+            badUsage: () => {return im.iv_to_string()},
+            expectedError: `No iv given`,
+        },
+        {
+            name: "string_to_iv no string",
+            badUsage: () => {return im.string_to_iv()},
+            expectedError: `No string given`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
