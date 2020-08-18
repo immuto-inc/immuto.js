@@ -787,6 +787,16 @@ async function test_bad_usage() {
             badUsage: () => {return im.string_to_iv()},
             expectedError: `No string given`,
         },
+        {
+            name: "encrypt_string_with_password no plaintext",
+            badUsage: () => {return im.encrypt_string_with_password()},
+            expectedError: `No plaintext given`,
+        },
+        {
+            name: "encrypt_string_with_password no password",
+            badUsage: () => {return im.encrypt_string_with_password("plaintext")},
+            expectedError: `No password given`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
