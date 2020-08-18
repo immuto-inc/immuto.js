@@ -154,9 +154,7 @@ exports.init = function(debug, debugHost) {
             }
         },
         shard_to_URL: (shardIndex) => {
-            if (!shardIndex && shardIndex !== 0) {
-                throw new Error("No prefix given")
-            }
+            if (!shardIndex && shardIndex !== 0) {throw new Error("No prefix given")}
 
             if (shardIndex === 0) { return "http://localhost:8443" } 
 
@@ -174,9 +172,7 @@ exports.init = function(debug, debugHost) {
             if (shardIndex > 16777215) { // ffffff
                 throw new Error(`shardIndex: ${shardIndex} exceeds width of ${SHARD_LENGTH}`)
             }
-            if (shardIndex < 0) {
-                throw new Error(`shardIndex must be a positive integer`)
-            }
+            if (shardIndex < 0) {throw new Error(`shardIndex must be a positive integer`)}
 
             let hexString = Number(shardIndex).toString(16)
 
@@ -510,15 +506,9 @@ exports.init = function(debug, debugHost) {
     }
 
     this.decrypt_RSA_private_key = function(encryptedKey, rsaIv, password) {
-        if (!encryptedKey) {
-            throw new Error("encryptedKey is required for decryption")
-        }
-        if (!rsaIv) {
-            throw new Error("iv is required for decryption")
-        }
-        if (!password) {
-            throw new Error("Password is required to decrypt RSA key")
-        }
+        if (!encryptedKey) {throw new Error("encryptedKey is required for decryption")}
+        if (!rsaIv) {throw new Error("iv is required for decryption")}
+        if (!password) {throw new Error("Password is required to decrypt RSA key")}
 
         const decryptKey = this.generate_key_from_password(password)  
         const iv = this.string_to_iv(rsaIv)
@@ -572,9 +562,8 @@ exports.init = function(debug, debugHost) {
     }
 
     this.generate_key_from_password = function(password) {
-        if (!password) {
-            throw new Error("Password is required to generate key")
-        }
+        if (!password) {throw new Error("Password is required to generate key")}
+        
         const account = this.decrypt_account(password)
 
         const hash = crypto.createHash("sha512")
@@ -583,9 +572,7 @@ exports.init = function(debug, debugHost) {
     }
 
     this.iv_to_string = function(iv) {
-        if (!iv) {
-            throw new Error("No iv given")
-        }
+        if (!iv) {throw new Error("No iv given")}
 
         let str = ""
         for (let i = 0; i < iv.length; i ++) {
@@ -595,9 +582,7 @@ exports.init = function(debug, debugHost) {
     }
 
     this.string_to_iv = function(str) {
-        if (!str) {
-            throw new Error("No string given")
-        }
+        if (!str) {throw new Error("No string given")}
 
         let ivStr = str.split(',')
 
