@@ -912,7 +912,7 @@ exports.init = function(debug, debugHost) {
 
             var http = new_HTTP();
             http.open("POST", accessURL, true);
-            http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            http.setRequestHeader("Content-Type", "application/json")
             http.onreadystatechange = function() {
                 if (http.readyState === 4 && http.status === 200) {
                     resolve(JSON.parse(http.responseText))
@@ -921,7 +921,9 @@ exports.init = function(debug, debugHost) {
                 }
             };
 
-            http.send(`searchQuery=${query}`)
+            http.send(JSON.stringify({
+                searchQuery: query
+            }))
         })
     }
 
