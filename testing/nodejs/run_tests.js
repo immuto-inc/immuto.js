@@ -788,6 +788,11 @@ async function test_bad_usage() {
             expectedError: `No string given`,
         },
         {
+            name: "encrypt_string no plaintext",
+            badUsage: () => {return im.encrypt_string()},
+            expectedError: `No plaintext given`,
+        },
+        {
             name: "encrypt_string_with_password no plaintext",
             badUsage: () => {return im.encrypt_string_with_password()},
             expectedError: `No plaintext given`,
