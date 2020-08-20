@@ -798,6 +798,11 @@ async function test_bad_usage() {
             badUsage: () => {return im.encrypt_string_with_password("plaintext")},
             expectedError: `No password given`,
         },
+        {
+            name: "get_encrypted_file no URL",
+            badUsage: () => {return im.get_encrypted_file()},
+            expectedError: `No fileURL given`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
