@@ -739,6 +739,11 @@ async function test_bad_usage() {
             expectedError: `No fileContent given`,
         },
         {
+            name: "search_records_by_query no query",
+            badUsage: () => {return im.search_records_by_query()},
+            expectedError: `No query given`,
+        },
+        {
             name: "build_full_URL no URL",
             badUsage: () => {return im.build_full_URL()},
             expectedError: `No remoteURL given`,
