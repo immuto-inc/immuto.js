@@ -10,7 +10,8 @@ const email = IN_BROWSER ? window.localStorage.email : process.env.EMAIL
 const password = IN_BROWSER ? window.localStorage.password : process.env.PASSWORD
 const email2 = IN_BROWSER ? window.localStorage.email2 : process.env.EMAIL2
 const password2 = IN_BROWSER ? window.localStorage.password2 : process.env.PASSWORD2
-
+const email3 = IN_BROWSER ? window.localStorage.email3 : process.env.EMAIL3
+const password3 = IN_BROWSER ? window.localStorage.password3 : process.env.PASSWORD3
 
 if (!(email && password && email2 && password2)) {
     const errMessage = "Email and password are required"
@@ -38,9 +39,9 @@ function assert_throw(assertion, message) {
 async function run_tests(email, password) {
     try {       
         await test_utils()
-        await test_bad_usage();
+        await test_bad_usage()
         await im.authenticate(email, password) 
-        
+
         // await test_org_member_registration()
         // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
@@ -431,6 +432,14 @@ async function test_password_reset() {
 
 async function test_bad_usage() {
     const BAD_USAGES = [
+        {
+            name: "Unverified email test",
+            badUsage: async () => {
+                await im.authenticate(email3, password3)
+                return await im.create_data_management("content", "name", "basic", password3, "")
+            },
+            expectedError: "Your email has not yet been verified"
+        },
         {
             name: "Auth no email",
             badUsage: () => {return im.authenticate()},
