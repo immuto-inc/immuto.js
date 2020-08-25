@@ -753,17 +753,19 @@ exports.init = function(debug, debugHost) {
             encryptedFile.lastModifiedDate = new Date();
             encryptedFile.name = file.name;
 
-            let sendstring  = 'fileSize=' + encryptedFile.size
-            sendstring += '&fileName=' + file.name
-            sendstring += '&fileType=' + file.type
-            sendstring += '&recordID=' + recordID
-            if (projectID) sendstring += '&projectID=' + projectID
-            sendstring += '&authToken=' + this.authToken
+            let query = {
+                fileSize: encryptedFile.size,
+                fileName: file.name,
+                fileType: file.type,
+                recordID: recordID,
+                authToken: this.authToken
+            }
+            if (projectID) query.projectID = projectID
 
             var xhr = new_HTTP()
             let url =  this.host + "/prepare-file-upload"
             xhr.open("POST", url, true);
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            xhr.setRequestHeader("Content-Type", "application/json")
             xhr.onreadystatechange = () => {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     let presignedPostData = JSON.parse(xhr.responseText)
@@ -803,7 +805,7 @@ exports.init = function(debug, debugHost) {
                     reject(xhr.responseText)
                 }
             };
-            xhr.send(sendstring);
+            xhr.send(JSON.stringify(query));
         })
     }
 
