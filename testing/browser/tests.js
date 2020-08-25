@@ -1,6 +1,9 @@
 const IN_BROWSER = true;
 const IMMUTO_URL = "http://localhost:8005"
-let im = Immuto.init(true, IMMUTO_URL)
+const im = Immuto.init({
+    useSandbox: true,
+    host: IMMUTO_URL,
+})
 
 const email = IN_BROWSER ? window.localStorage.email : process.env.EMAIL
 const password = IN_BROWSER ? window.localStorage.password : process.env.PASSWORD

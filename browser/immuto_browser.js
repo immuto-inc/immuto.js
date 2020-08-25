@@ -25,13 +25,27 @@ function new_Form() { // for sending files with XMLHttpRequest
     else return new NodeForm()
 }
 
-exports.init = function(debug, debugHost) {    
-    this.host = PROD_ENDPIONT
-    if (debug === true) {
+const DEFAULT_INIT_PARAMS = {
+    useSandbox: false,
+    host: PROD_ENDPIONT,
+    cachePassword: true,
+}
+/* debugHost as second argument remains for backwards compatibiility, but only
+ * for old internal testing that used localhost
+ * all public examples/usage have debugHost as dev.immuto.io (DEV_ENDPOINT)
+**/
+exports.init = function(options, debugHost) {    
+    if (typeof options === "object") {
+        for (let param in DEFAULT_INIT_PARAMS) {
+            this[param] = (param in options) ? options[param] : DEFAULT_INIT_PARAMS[param]
+        }
+    } else if (options === true) { // for backwards compatibility when options was 'debug' flag
         if (debugHost)
-            this.host = debugHost
+            this.host = debugHost // safe to remove when debugHost no longer used internally
         else 
             this.host = DEV_ENDPOINT // reasonable default
+    } else {
+        throw new Error("options argument must be an object") // as true === option now deprecated
     }
 
     this.web3 = new Web3(PROD_ENDPIONT) // Dummy provider because required on init now
