@@ -832,9 +832,10 @@ async function test_bad_usage() {
             await badUsage() // should throw error
             throw new Error(`Failed to catch bad usage: ${name}`)
         } catch(err) {
+            await im.deauthenticate() // safe default for when not logged in
             const message = err.message || err // thrown error || promise rejection
             if (message.startsWith("Failed to catch bad usage:")) throw err;
-            assert_throw(message === expectedError, `'${message}' does not match expected error: '${expectedError}'`)
+            assert_throw(message === expectedError, `For test ${name} '${message}' does not match expected error: '${expectedError}'`)
         }
     }
     console.log("Passed bad usage tests!")

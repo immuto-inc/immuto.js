@@ -67,6 +67,7 @@ exports.init = function(options, debugHost) {
             this.encryptedKey = ls.IMMUTO_encryptedKey
             this.authToken = ls.IMMUTO_authToken
             this.email = ls.IMMUTO_email.toLowerCase()
+            this.password = ls.IMMUTO_password
         }
     }
 
@@ -208,6 +209,7 @@ exports.init = function(options, debugHost) {
     }
 
     this.decrypt_account = function(password) {
+        password = password || this.password
         if (!password) throw new Error("password is required")
 
         try {
@@ -245,6 +247,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.register_user = function(email, password, orgToken) {
+        password = password || this.password
+
         return new Promise((resolve, reject) => {
             if (!email) {
                 reject("User email is required"); return;
@@ -319,6 +323,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.submit_login = function(email, password) {
+        password = password || this.password
+
         return new Promise((resolve, reject) => {
             let http = new_HTTP()
             let sendstring = "email=" + email 
@@ -338,6 +344,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.prove_address = function(authToken, email, password) {
+        password = password || this.password
+
         return new Promise((resolve, reject) => {
             let account = {}
             try {
@@ -398,11 +406,13 @@ exports.init = function(options, debugHost) {
         this.encryptedKey = loginResponse.encryptedKey
         this.authToken = loginResponse.authToken
         this.email = email
+        this.password = (this.cachePassword === true) ? password : ''
         if (IN_BROWSER) {
             window.localStorage.IMMUTO_salt = this.salt
             window.localStorage.IMMUTO_encryptedKey = this.encryptedKey
             window.localStorage.IMMUTO_authToken = this.authToken
             window.localStorage.IMMUTO_email = this.email
+            window.localStorage.IMMUTO_password = this.password
         }
 
         return await this.prove_address(this.authToken, email, password)
@@ -414,16 +424,23 @@ exports.init = function(options, debugHost) {
             window.localStorage.IMMUTO_email = ""
             window.localStorage.IMMUTO_salt = ""
             window.localStorage.IMMUTO_encryptedKey = ""
+            window.localStorage.IMMUTO_password = ""
         }
         this.authToken = ""
         this.email = ""
         this.salt = ""
         this.encryptedKey = ""
+        this.password = ""
     }
 
     this.deauthenticate = function() {
+        const authToken = this.authToken || (IN_BROWSER ? window.localStorage.IMMUTO_authToken : "") 
+        if (!authToken) {
+            this.reset_state()
+            return new Promise(resolve => {resolve()})
+        }
+
         return new Promise((resolve, reject) => {
-            const authToken = this.authToken || (IN_BROWSER ? window.localStorage.IMMUTO_authToken : "") 
             let sendstring = `authToken=${authToken}`
             
             this.reset_state()
@@ -488,6 +505,8 @@ exports.init = function(options, debugHost) {
     // convenience method for signing an arbitrary string
     // user address can be recovered from signature by utils.ecRecover
     this.sign_string = function(string, password) {
+        password = password || this.password
+
         if (!string) throw new Error("string is required for signing")
         if (!password) throw new Error("password is required to sign string")
 
@@ -522,6 +541,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.decrypt_RSA_private_key = function(encryptedKey, rsaIv, password) {
+        password = password || this.password
+
         if (!encryptedKey) {throw new Error("encryptedKey is required for decryption")}
         if (!rsaIv) {throw new Error("iv is required for decryption")}
         if (!password) {throw new Error("Password is required to decrypt RSA key")}
@@ -532,6 +553,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.generate_RSA_keypair = function(password) {
+        password = password || this.password
+
         return new Promise((resolve, reject) => {
             if (!password) {
                 reject("Password is required to generate RSA keypair")
@@ -578,6 +601,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.generate_key_from_password = function(password) {
+        password = password || this.password
+
         if (!password) {throw new Error("Password is required to generate key")}
         
         const account = this.decrypt_account(password)
@@ -645,6 +670,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.encrypt_string_with_password = function(plaintext, password, encoding) {
+        password = password || this.password
+
         if (!plaintext) {throw new Error("No plaintext given") }
         if (!password) { throw new Error("No password given") }
 
@@ -748,6 +775,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.upload_file_for_record = function(file, fileContent, recordID, password, projectID, handleProgress) {
+        password = password || this.password
+
         return new Promise((resolve, reject) => {
             if (!file) { reject("No file given"); return; }
             if (!fileContent) { reject("No fileContent given"); return; }
@@ -824,6 +853,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.upload_file = function(file, password, projectID, handleProgress) {
+        password = password || this.password
+
         return new Promise((resolve, reject) => {
             if (!file) { reject("No file given"); return; }
             if (!password) { reject("No password given"); return; }
@@ -843,6 +874,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.upload_file_data = function(fileContent, fileName, password, projectID, handleProgress) {
+        password = password || this.password
+
         return new Promise((resolve, reject) => {
             if (!fileContent) { reject("No fileContent given"); return; }
             if (!fileName) { reject("No fileName given"); return; }
@@ -862,6 +895,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.download_file_data = function(recordID, password, version) {
+        password = password || this.password
+
         version = version || 0
         return new Promise((resolve, reject) => {
             if (!recordID) { reject("No recordID given"); return; }
@@ -981,6 +1016,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.decrypt_fileKey_symmetric = function(encryptedKeyInfo, password) {
+        password = password || this.password
+
         if (!encryptedKeyInfo) { throw new Error("No encryptedKeyInfo given") }
         if (!password) { throw new Error("No password given") }
 
@@ -1001,6 +1038,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.decrypt_fileKey_asymmetric = async function(encryptedKeyInfo, password) {   
+        password = password || this.password
+
         if (!encryptedKeyInfo) { throw new Error("No encryptedKeyInfo given") }
         if (!password) { throw new Error("No password given") }
 
@@ -1040,6 +1079,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.download_file_for_record = async function(recordInfo, password, version, asPlaintext) {
+        password = password || this.password
+
         if (!recordInfo) { throw new Error("No recordInfo given"); }
         if (!recordInfo.files) { throw new Error("No files exist for record") }
         if (!password) { throw new Error("No password given"); }
@@ -1079,6 +1120,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.download_file_for_recordID = async function(recordID, password, version, asPlaintext) {
+        password = password || this.password
+
         if (!recordID) { throw new Error("recordID is required"); }
         if (!password) { throw new Error("password is required"); }
         this.utils.parse_record_ID(recordID) // throws error on bad record
@@ -1137,6 +1180,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.share_record = async function(recordID, shareEmail, password) {
+        password = password || this.password
+
         if (!recordID) throw new Error("RecordID is required")
         if (!shareEmail) throw new Error("shareEmail is required")
         if (!password) throw new Error("passowrd is required")
@@ -1164,6 +1209,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.create_data_management = function(content, name, type, password, desc) {
+        password = password || this.password
+
         return new Promise((resolve, reject) => {
             if (!content) { reject("No content given"); return; }
             if (!name) { reject("No name given"); return; }
@@ -1217,6 +1264,8 @@ exports.init = function(options, debugHost) {
     }
 
     this.update_data_management = function(recordID, newContent, password) {
+        password = password || this.password
+
         return new Promise((resolve, reject) => {
             if (!recordID) { reject("No recordID given"); return; }
             if (!newContent) { reject("No newContent given"); return; }
