@@ -39,6 +39,9 @@ exports.init = function(options, debugHost) {
         for (let param in DEFAULT_INIT_PARAMS) {
             this[param] = (param in options) ? options[param] : DEFAULT_INIT_PARAMS[param]
         }
+        if (this.useSandbox) {
+            this.host = options.host || DEV_ENDPOINT // allow specified dev host to override default for internal testing
+        }
     } else if (options === true) { // for backwards compatibility when options was 'debug' flag
         if (debugHost)
             this.host = debugHost // safe to remove when debugHost no longer used internally
