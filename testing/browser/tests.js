@@ -48,6 +48,7 @@ async function run_tests(email, password) {
         await test_password_reset()
 
         await data_management_tests()
+        await data_management_tests(true) // tests password auto-fill
         await test_search()
         await test_encryption()
         if (IN_BROWSER) await test_file_upload()  
@@ -124,14 +125,19 @@ async function test_org_member_registration() {
     }
 }
 
-async function data_management_tests() {
+async function data_management_tests(testPasswordAutofill) {
     let content = "EXAMPLE CONTENT"
     let recordName = "A Record ?q=5&heloo&&="
     let type = "basic" // alternatively, could be 'editable'
     let desc = "Record Description ?q=5&heloo&&=" // optional
-    
+    const pw = testPasswordAutofill ? password : undefined
+   
+    if (testPasswordAutofill) {
+        console.log("Testing with auto-filled password")
+    }
+   
     try {
-        const recordID = await im.create_data_management(content, recordName, type, password, desc)
+        const recordID = await im.create_data_management(content, recordName, type, pw, desc)
         validate_recordID(recordID)
         let verified = await im.verify_data_management(recordID, type, content)
 
@@ -146,7 +152,7 @@ async function data_management_tests() {
     }
 
     try {
-        const recordID = await im.create_data_management(content, "Editable Record", 'editable', password, desc)
+        const recordID = await im.create_data_management(content, "Editable Record", 'editable', pw, desc)
         validate_recordID(recordID)
         let verified = await im.verify_data_management(recordID, type, content)
 
@@ -156,7 +162,7 @@ async function data_management_tests() {
         assert_throw(verified.email === im.email, `Verified email ${verified.email} does not match auth email ${im.email}`)
 
         let updatedContent = "NEW_CONTENT"
-        let update = await im.update_data_management(recordID, updatedContent, password)
+        let update = await im.update_data_management(recordID, updatedContent, pw)
         verified = await im.verify_data_management(recordID, type, updatedContent)
 
         if (!verified) {
