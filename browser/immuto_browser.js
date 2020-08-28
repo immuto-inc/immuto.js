@@ -71,6 +71,7 @@ exports.init = function(options, debugHost) {
             this.authToken = ls.IMMUTO_authToken
             this.email = ls.IMMUTO_email.toLowerCase()
             this.password = ls.IMMUTO_password
+            this.userInfo = ls.IMMUTO_userInfo ? JSON.parse(ls.IMMUTO_userInfo) : undefined
         }
     }
 
@@ -417,15 +418,17 @@ exports.init = function(options, debugHost) {
         this.authToken = loginResponse.authToken
         this.email = email
         this.password = (this.cachePassword === true) ? password : ''
+        this.userInfo = await this.prove_address(this.authToken, email, password)
+
         if (IN_BROWSER) {
             window.localStorage.IMMUTO_salt = this.salt
             window.localStorage.IMMUTO_encryptedKey = this.encryptedKey
             window.localStorage.IMMUTO_authToken = this.authToken
             window.localStorage.IMMUTO_email = this.email
             window.localStorage.IMMUTO_password = this.password
+            window.localStorage.IMMUTO_userInfo = JSON.stringify(this.userInfo)
         }
 
-        this.userInfo = await this.prove_address(this.authToken, email, password)
         return this.authToken
     }
 
@@ -436,12 +439,14 @@ exports.init = function(options, debugHost) {
             window.localStorage.IMMUTO_salt = ""
             window.localStorage.IMMUTO_encryptedKey = ""
             window.localStorage.IMMUTO_password = ""
+            window.localStorage.IMMUTO_userInfo = ""
         }
         this.authToken = ""
         this.email = ""
         this.salt = ""
         this.encryptedKey = ""
         this.password = ""
+        this.userInfo = ""
     }
 
     this.deauthenticate = function() {
