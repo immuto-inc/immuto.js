@@ -37,6 +37,7 @@ function assert_throw(assertion, message) {
 
 async function run_tests(email, password) {
     try {       
+        test_init()
         await test_utils()
         await test_bad_usage()
         await im.authenticate(email, password) 
@@ -62,6 +63,30 @@ async function run_tests(email, password) {
     } finally {
         if (!IN_BROWSER) process.exit()
     }
+}
+
+function test_init() {
+    let im = Immuto.init({})
+    assert_throw(im.useSandbox === false, `Failed useSandbox default`)
+    assert_throw(im.host === "https://api.immuto.io", `Failed host default`)
+    assert_throw(im.cachePassword === true, `Failed cachePassword default`)
+
+    im = Immuto.init({
+        useSandbox: true,
+    })
+    assert_throw(im.useSandbox === true, `Failed useSandbox === true with default host`)
+    assert_throw(im.host === "https://dev.immuto.io", `Failed host default with useSandbox`)
+    assert_throw(im.cachePassword === true, `Failed cachePassword default`)
+
+    im = Immuto.init({
+        useSandbox: true,
+        host: IMMUTO_URL,
+    })
+    assert_throw(im.useSandbox === true, `Failed useSandbox === true`)
+    assert_throw(im.host === IMMUTO_URL, `Failed useSandbox with host`)
+    assert_throw(im.cachePassword === true, `Failed cachePassword default`)
+
+    console.log("init tests passed!")
 }
 
 function buffers_are_equal(b1, b2) {
