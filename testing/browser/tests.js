@@ -40,11 +40,13 @@ async function run_tests(email, password) {
         test_init()
         await test_utils()
         await test_bad_usage()
-        await im.authenticate(email, password) 
-        
+        await im.authenticate(email, password)
+
         // await test_org_member_registration()
         // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
+
+        await test_userInfo();
 
         await test_password_reset()
 
@@ -63,6 +65,12 @@ async function run_tests(email, password) {
     } finally {
         if (!IN_BROWSER) process.exit()
     }
+}
+
+async function test_userInfo() {
+    assert_throw(typeof im.userInfo === "object", `Failed userInfo cache`)
+
+    console.log("Passed userInfo tests")
 }
 
 function test_init() {
