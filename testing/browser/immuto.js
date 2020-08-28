@@ -383,7 +383,12 @@ exports.init = function(options, debugHost) {
 
                     this.generate_RSA_keypair(password)
                     .catch(err => reject(err))
-                    .finally(() => resolve(userInfo))
+                    .finally(({pubKey, encryptedPrivateKey, rsaIv}) => {
+                        userInfo.privateKey = encryptedPrivateKey
+                        userInfo.publicKey  = pubKey
+                        userInfo.rsaIv      = rsaIv
+                        resolve(userInfo)
+                    })
                 } else if (http2.readyState === 4) {
                     console.error("Error on login verification")
                     reject(http2.responseText)
@@ -587,7 +592,7 @@ exports.init = function(options, debugHost) {
                 xhr.open("POST", url, true);
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4 && xhr.status === 204) {
-                        resolve({pubKey, privKey})
+                        resolve({pubKey, privKey, rsaIv: iv, encryptedPrivateKey})
                     } else if (xhr.readyState === 4) {
                         console.error("Error on upload")
                         reject(xhr.responseText)
@@ -600,7 +605,7 @@ exports.init = function(options, debugHost) {
                         reject(err)
                         return
                     }
-                    resolve({pubKey, privKey})
+                    resolve({pubKey, privKey, rsaIv: iv, encryptedPrivateKey})
                 })
             }
         })
