@@ -63,6 +63,8 @@ exports.init = function(options, debugHost) {
     this.authToken = ""
     this.email = ""
 
+    this.userInfo = undefined // loaded on authenticate
+
     if (IN_BROWSER) {
         let ls = window.localStorage // preserve session across pages
         if (ls.IMMUTO_authToken && ls.IMMUTO_email && ls.IMMUTO_salt && ls.IMMUTO_encryptedKey) {
@@ -369,19 +371,19 @@ exports.init = function(options, debugHost) {
             http2.onreadystatechange = () => {
                 if (http2.readyState === 4 && (http2.status === 204 || http2.status === 200)) {
                     if (http2.status === 204) {
-                        resolve(authToken)
+                        resolve(undefined)
                         return
                     }
 
                     let userInfo = JSON.parse(http2.responseText)
                     if (userInfo.publicKey) { // already generated RSA keypair
-                        resolve(authToken)
+                        resolve(userInfo)
                         return
                     }
 
                     this.generate_RSA_keypair(password)
-                    .catch(err => console.error(err))
-                    .finally(() => resolve(authToken))
+                    .catch(err => reject(err))
+                    .finally(() => resolve(userInfo))
                 } else if (http2.readyState === 4) {
                     console.error("Error on login verification")
                     reject(http2.responseText)
@@ -418,7 +420,8 @@ exports.init = function(options, debugHost) {
             window.localStorage.IMMUTO_password = this.password
         }
 
-        return await this.prove_address(this.authToken, email, password)
+        this.userInfo = await this.prove_address(this.authToken, email, password)
+        return this.authToken
     }
 
     this.reset_state = function() {
