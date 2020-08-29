@@ -7,6 +7,7 @@ var Web3 = require('web3')
 var sigUtil = require('eth-sig-util')
 var NodeHTTP = require('xmlhttprequest').XMLHttpRequest // for backend compatability
 var NodeForm = require('form-data')                     // for backend compatability
+const axios = require('axios');
 var crypto = require('crypto')
 const NodeRSA = require('node-rsa');
 
@@ -472,6 +473,21 @@ exports.init = function(options, debugHost) {
                 }
             };
             http.send(sendstring);
+        })
+    }
+
+    this.set_pdr = function(recordID) {
+        return new Promise((resolve, reject) => {
+            axios.post(this.host + '/set-pdr', {
+                recordID,
+                authToken: this.authToken,
+            })
+            .then(() => {
+                resolve()
+            })
+            .catch(err => {
+                reject(err)
+            });
         })
     }
 
