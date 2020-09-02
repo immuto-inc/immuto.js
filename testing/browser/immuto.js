@@ -65,6 +65,7 @@ exports.init = function(options, debugHost) {
     this.email = ""
 
     this.userInfo = undefined // loaded on authenticate
+    this.pdr = undefined // starts to load on authenticate
 
     if (IN_BROWSER) {
         let ls = window.localStorage // preserve session across pages
@@ -432,6 +433,7 @@ exports.init = function(options, debugHost) {
             window.localStorage.IMMUTO_userInfo = JSON.stringify(this.userInfo)
         }
 
+        this.pdr = this.load_pdr() // run async, get_pdr will resolve appropriately
         return this.authToken
     }
 
@@ -493,6 +495,36 @@ exports.init = function(options, debugHost) {
                 reject(err)
             });
         })
+    }
+
+    this.load_pdr = async function(userInfo) {
+        userInfo = userInfo || this.userInfo
+        if (!this.userInfo) throw new Error("userInfo not yet loaded - has authenticate finished?")
+
+        const pdr = userInfo.pdr
+        if (!pdr) {
+            throw new Error("userInfo missing pdr field. Has user created pdr?")
+        }
+
+        const data = await this.download_file_data(pdr)
+        this.pdr = JSON.parse(data)
+        return this.pdr
+    }
+
+    this.get_pdr = function() {
+        if (!this.userInfo) throw new Error("userInfo not yet loaded - has authenticate finished?")
+
+        if (!this.pdr) {
+            return new Promise((resolve, reject) => {
+                this.load_pdr()
+                .then(() => { return this.pdr })
+                .catch(err => reject(err))
+            })
+        }
+
+        // yet to resolve but load_pdr called (probably in auth)
+        if (this.pdr.toString() === "[object Promise]") { return this.pdr }
+        return new Promise(resolve => resolve(this.pdr)) // already resolved
     }
 
     this.update_encryption_info = function(encryptedKey, hashedPassword) {
