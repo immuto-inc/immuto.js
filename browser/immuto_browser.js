@@ -515,11 +515,7 @@ exports.init = function(options, debugHost) {
         if (!this.userInfo) throw new Error("userInfo not yet loaded - has authenticate finished?")
 
         if (!this.pdr) {
-            return new Promise((resolve, reject) => {
-                this.load_pdr()
-                .then(() => { return this.pdr })
-                .catch(err => reject(err))
-            })
+            return this.load_pdr()
         }
 
         // yet to resolve but load_pdr called (probably in auth)

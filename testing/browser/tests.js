@@ -91,6 +91,18 @@ async function test_pdr() {
         to match resolvedPdr (${JSON.stringify(resolvedPdr)})`
     )
 
+    im.pdr = undefined // test full loading
+    const loadedPdr = await im.get_pdr()
+    assert_throw(
+        loadedPdr && loadedPdr.toString() === "[object Object]", 
+        `Expected loadedPdr to be resolved object but got ${loadedPdr}`
+    )
+    assert_throw(
+        JSON.stringify(loadedPdr) === JSON.stringify(resolvedPdr), 
+        `Expected loadedPdr (${JSON.stringify(loadedPdr)}) 
+        to match resolvedPdr (${JSON.stringify(resolvedPdr)})`
+    )
+
     console.log(resolvedPdr)
     console.log("Passed pdr tests")
 }
