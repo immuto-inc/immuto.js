@@ -859,6 +859,11 @@ async function test_bad_usage() {
             badUsage: () => {return im.get_encrypted_file()},
             expectedError: `No fileURL given`,
         },
+        {
+            name: "set_pdr no recordID",
+            badUsage: () => {return im.set_pdr()},
+            expectedError: `No recordID given`,
+        },
     ]
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {

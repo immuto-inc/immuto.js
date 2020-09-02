@@ -480,6 +480,8 @@ exports.init = function(options, debugHost) {
 
     this.set_pdr = function(recordID) {
         return new Promise((resolve, reject) => {
+            if (!recordID) {reject("No recordID given")}
+
             axios.post(this.host + '/set-pdr', {
                 recordID,
                 authToken: this.authToken,

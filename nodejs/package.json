@@ -1,6 +1,6 @@
 {
   "name": "immuto-sdk",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Immuto's JavaScript library for secure data management",
   "main": "immuto.js",
   "scripts": {
