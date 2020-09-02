@@ -41,6 +41,7 @@ async function run_tests(email, password) {
         await test_utils()
         await test_bad_usage()
         await im.authenticate(email, password)
+        if (IN_BROWSER) await test_pdr()
 
         // await test_org_member_registration()
         // await im.deauthenticate() // de-authenticate org-member
@@ -71,6 +72,27 @@ async function test_userInfo() {
     assert_throw(typeof im.userInfo === "object", `Failed userInfo cache`)
 
     console.log("Passed userInfo tests")
+}
+
+async function test_pdr() {
+    assert_throw(
+        im.pdr && im.pdr.toString() === "[object Promise]", 
+        `Expected phr to be unresolved promise on authenticate but got ${im.pdr}`
+    )
+
+    const resolvedPdr = await im.get_pdr()
+    assert_throw(
+        resolvedPdr.toString() === "[object Object]", 
+        `Expected phr to be resolved object but got ${resolvedPdr}`
+    )
+    assert_throw(
+        resolvedPdr === im.pdr, 
+        `Expected im.pdr (${JSON.stringify(im.pdr)}) 
+        to match resolvedPdr (${JSON.stringify(resolvedPdr)})`
+    )
+
+    console.log(resolvedPdr)
+    console.log("Passed pdr tests")
 }
 
 function test_init() {

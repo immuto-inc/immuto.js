@@ -431,7 +431,9 @@ exports.init = function(options, debugHost) {
             window.localStorage.IMMUTO_userInfo = JSON.stringify(this.userInfo)
         }
 
-        this.pdr = this.load_pdr() // run async, get_pdr will resolve appropriately
+        // run async, get_pdr will resolve appropriately
+        if (this.userInfo && this.userInfo.pdr)this.pdr = this.load_pdr() 
+        
         return this.authToken
     }
 
