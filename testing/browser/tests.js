@@ -47,7 +47,7 @@ async function run_tests(email, password) {
         // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
 
-        await test_userInfo();
+        await test_userInfo()
 
         await test_password_reset()
 
@@ -70,6 +70,29 @@ async function run_tests(email, password) {
 
 async function test_userInfo() {
     assert_throw(typeof im.userInfo === "object", `Failed userInfo cache`)
+    const requiredFields = [
+        "_id",
+        "email",
+        "address",
+        "encryptedKey",
+        "userSalt",
+        "hashedPass",
+        "verifiedEmail",
+        "verifiedIdentity",
+        "orgs",
+        "credits",
+        "expiryDate",
+        "storageUse",
+        "privateKey",
+        "publicKey",
+        "rsaIv",
+    ]
+    for (let field of requiredFields) {
+        assert_throw(
+            im.userInfo[field] !== undefined, 
+            `Expected ${field} to be a valid field of im.userInfo`
+        )
+    }
 
     console.log("Passed userInfo tests")
 }
