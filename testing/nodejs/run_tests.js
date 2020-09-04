@@ -43,11 +43,13 @@ async function run_tests(email, password) {
     try {       
         test_init()
         await test_utils()
-        await test_bad_usage()
+        await test_bad_usage({verbose: false})
+       
         await im.authenticate(email, password)
+
         if (IN_BROWSER) await test_pdr()
+
         // await test_org_member_registration()
-        // await im.deauthenticate() // de-authenticate org-member
         // await im.authenticate(email, password) // re-authenticate org-admin
 
         await test_userInfo()
@@ -528,7 +530,7 @@ async function test_password_reset() {
     console.log("Passed password reset test")
 }
 
-async function test_bad_usage() {
+async function test_bad_usage({verbose}) {
     const BAD_USAGES = [
         {
             name: "Unverified email test",
@@ -928,6 +930,7 @@ async function test_bad_usage() {
     
     for (const { name, badUsage, expectedError, requiresAuth } of BAD_USAGES) {
         try {
+            if (verbose) console.log(`Running bad usage test: ${name}`)
             if (requiresAuth) await im.authenticate(email, password)
             await badUsage() // should throw error
             throw new Error(`Failed to catch bad usage: ${name}`)

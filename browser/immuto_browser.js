@@ -108,7 +108,6 @@ exports.init = function(options, debugHost) {
                             let addresses = JSON.parse(http.responseText) 
                             resolve(addresses)
                         } catch (err) {
-                            console.error(http.responseText)
                             reject(err)
                         }
                     } else if (http.readyState === 4) {
@@ -393,7 +392,6 @@ exports.init = function(options, debugHost) {
                         resolve(userInfo)
                     })
                 } else if (http2.readyState === 4) {
-                    console.error("Error on login verification")
                     reject(http2.responseText)
                 }
             }
@@ -430,9 +428,6 @@ exports.init = function(options, debugHost) {
             window.localStorage.IMMUTO_password = this.password
             window.localStorage.IMMUTO_userInfo = JSON.stringify(this.userInfo)
         }
-
-        // run async, get_pdr will resolve appropriately
-        if (this.userInfo && this.userInfo.pdr) this.pdr = this.load_pdr() 
         
         return this.authToken
     }
@@ -452,12 +447,14 @@ exports.init = function(options, debugHost) {
         this.encryptedKey = ""
         this.password = ""
         this.userInfo = ""
+        this.pdr = undefined // todo: abort associated XHR if not yet resolved
     }
 
     this.deauthenticate = function() {
         const authToken = this.authToken || (IN_BROWSER ? window.localStorage.IMMUTO_authToken : "") 
+        this.reset_state()
+        
         if (!authToken) {
-            this.reset_state()
             return new Promise(resolve => {resolve()})
         }
 
@@ -524,9 +521,7 @@ exports.init = function(options, debugHost) {
             return this.load_pdr()
         }
 
-        // yet to resolve but load_pdr called (probably in auth)
-        if (this.pdr.toString() === "[object Promise]") { return this.pdr }
-        return new Promise(resolve => resolve(this.pdr)) // already resolved
+        return new Promise(resolve => resolve(this.pdr)) // already cached
     }
 
     this.update_encryption_info = function(encryptedKey, hashedPassword) {
@@ -653,7 +648,6 @@ exports.init = function(options, debugHost) {
                     if (xhr.readyState === 4 && xhr.status === 204) {
                         resolve({pubKey, privKey, rsaIv: iv, encryptedPrivateKey})
                     } else if (xhr.readyState === 4) {
-                        console.error("Error on upload")
                         reject(xhr.responseText)
                     }
                 };
@@ -811,7 +805,11 @@ exports.init = function(options, debugHost) {
             if (!userEmail) { reject("No userEmail given"); return; }
             if (!recordID) { reject("No recordID given"); return; }
             if (!encryptedKey) { reject("No encryptedKey given"); return; }
-            this.utils.parse_record_ID(recordID) // throws error on bad record
+            try {
+                this.utils.parse_record_ID(recordID) 
+            } catch(err) {
+                reject(err); return;
+            }
 
             const url =  this.host + "/set-key-for-record"
             let form = new_Form()
@@ -914,7 +912,6 @@ exports.init = function(options, debugHost) {
 
                     http.send(formData);
                 } else if (xhr.readyState === 4) {
-                    console.error("Error on upload")
                     reject(xhr.responseText)
                 }
             };
@@ -1341,8 +1338,10 @@ exports.init = function(options, debugHost) {
             if (!newContent) { reject("No newContent given"); return; }
             if (!password) { reject("No password given"); return; }
 
-            if (!this.utils.parse_record_ID(recordID)) {
-                reject("Invalid recordID"); return; 
+            try {
+                this.utils.parse_record_ID(recordID) 
+            } catch(err) {
+                reject(err); return;
             }
 
             if (typeof newContent !== "string") {
@@ -1396,10 +1395,11 @@ exports.init = function(options, debugHost) {
             type = type.toLowerCase()
             if (!VALID_RECORD_TYPES.includes(type)) { reject(`Invalid type: ${type}`); return; }
 
-            let recordInfo = this.utils.parse_record_ID(recordID)
-
-            if (!recordInfo) {
-                reject("Invalid recordID"); return; 
+            let recordInfo = {}
+            try {
+                recordInfo = this.utils.parse_record_ID(recordID) 
+            } catch(err) {
+                reject(err); return;
             }
 
             let shardIndex = this.utils.hex_to_shardIndex(recordInfo.shardHex)
@@ -1452,9 +1452,11 @@ exports.init = function(options, debugHost) {
                 }
             }
 
-            let recordInfo = this.utils.parse_record_ID(recordID)
-            if (!recordInfo) {
-                reject("Invalid recordID"); return; 
+            let recordInfo = {}
+            try {
+                recordInfo = this.utils.parse_record_ID(recordID) 
+            } catch(err) {
+                reject(err); return;
             }
 
             this.get_data_management_history(recordID, type).then((history) => {
