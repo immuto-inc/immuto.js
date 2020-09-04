@@ -489,6 +489,12 @@ exports.init = function(options, debugHost) {
                 authToken: this.authToken,
             })
             .then(() => {
+                if (this.userInfo) {
+                    this.userInfo.pdr = recordID
+                    if (IN_BROWSER) {
+                        window.localStorage.IMMUTO_userInfo = JSON.stringify(this.userInfo)
+                    }
+                }
                 resolve()
             })
             .catch(err => {
