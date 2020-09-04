@@ -479,7 +479,7 @@ exports.init = function(options, debugHost) {
 
     this.set_pdr = function(recordID) {
         return new Promise((resolve, reject) => {
-            if (!recordID) {reject("No recordID given")}
+            if (!recordID) { reject("No recordID given"); return;}
 
             axios.post(this.host + '/set-pdr', {
                 recordID,
@@ -1291,7 +1291,7 @@ exports.init = function(options, debugHost) {
                 try {
                     content = this.ab2str(content)
                 } catch(err) {
-                    throw new Error(`Failed to convert data to string: ${err}`)
+                    reject(`Failed to convert data to string: ${err}`)
                 }
             }
 
