@@ -43,7 +43,7 @@ async function run_tests(email, password) {
        
         await im.authenticate(email, password)
        
-        if (IN_BROWSER) await test_pdr()
+        if (IN_BROWSER) await test_pdr();
 
         // await test_org_member_registration()
         // await im.authenticate(email, password) // re-authenticate org-admin
@@ -99,33 +99,42 @@ async function test_userInfo() {
 }
 
 async function test_pdr() {
-    assert_throw(
-        !im.pdr, 
-        `Expected phr to be unloaded ${im.pdr}`
-    )
+    // from basic implementation of pdr as single record
+    // assert_throw(
+    //     !im.pdr, 
+    //     `Expected phr to be unloaded ${im.pdr}`
+    // )
 
-    const resolvedPdr = await im.get_pdr()
-    assert_throw(
-        resolvedPdr.toString() === "[object Object]", 
-        `Expected phr to be resolved object but got ${resolvedPdr}`
-    )
-    assert_throw(
-        resolvedPdr === im.pdr, 
-        `Expected im.pdr (${JSON.stringify(im.pdr)}) 
-        to match resolvedPdr (${JSON.stringify(resolvedPdr)})`
-    )
+    // const resolvedPdr = await im.get_pdr()
+    // assert_throw(
+    //     resolvedPdr.toString() === "[object Object]", 
+    //     `Expected phr to be resolved object but got ${resolvedPdr}`
+    // )
+    // assert_throw(
+    //     resolvedPdr === im.pdr, 
+    //     `Expected im.pdr (${JSON.stringify(im.pdr)}) 
+    //     to match resolvedPdr (${JSON.stringify(resolvedPdr)})`
+    // )
 
-    im.pdr = undefined // test full loading
-    const loadedPdr = await im.get_pdr()
-    assert_throw(
-        loadedPdr && loadedPdr.toString() === "[object Object]", 
-        `Expected loadedPdr to be resolved object but got ${loadedPdr}`
-    )
-    assert_throw(
-        JSON.stringify(loadedPdr) === JSON.stringify(resolvedPdr), 
-        `Expected loadedPdr (${JSON.stringify(loadedPdr)}) 
-        to match resolvedPdr (${JSON.stringify(resolvedPdr)})`
-    )
+    // im.pdr = undefined // test full loading
+    // const loadedPdr = await im.get_pdr()
+    // assert_throw(
+    //     loadedPdr && loadedPdr.toString() === "[object Object]", 
+    //     `Expected loadedPdr to be resolved object but got ${loadedPdr}`
+    // )
+    // assert_throw(
+    //     JSON.stringify(loadedPdr) === JSON.stringify(resolvedPdr), 
+    //     `Expected loadedPdr (${JSON.stringify(loadedPdr)}) 
+    //     to match resolvedPdr (${JSON.stringify(resolvedPdr)})`
+    // )
+    const data     = "This is the pdr data"
+    const pdrID    = await im.store_pdr_entry(data)
+    const record   = await im.get_pdr_entry(pdrID)
+    const recordID = record.recordID
+    assert_throw(pdrID === recordID, `Expected pdrID ${pdrID} to match recordID ${recordID}`)
+
+    const dataDown = await im.download_file_data(recordID)
+    assert_throw(data === dataDown, `Expected data ${data} to match dataDown ${dataDown}`)
 
     console.log("Passed pdr tests")
 }

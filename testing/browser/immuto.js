@@ -526,6 +526,45 @@ exports.init = function(options, debugHost) {
         return new Promise(resolve => resolve(this.pdr)) // already cached
     }
 
+    this.store_pdr_entry = async function(entry) {
+        if (!entry) { throw new Error("No entry given"); }
+        entry = (typeof entry === "object") ? JSON.stringify(entry) : entry
+
+        const recordID = await this.upload_file_data(entry, "pdre")
+        await axios.post(this.host + '/store-pdr-entry', {
+            recordID,
+            authToken: this.authToken,
+        })
+
+        return recordID
+    }
+
+    this.get_pdr_entry = function(recordID) {
+        return new Promise((resolve, reject) => {
+            if (!recordID) { reject("No recordID given"); return;}
+
+            axios.get(this.host + '/pdr-entry', {
+                params: {
+                    recordID,
+                    authToken: this.authToken,
+                }
+            })
+            .then(entry => { resolve(entry.data) })
+            .catch(err => { reject(err) });
+        })
+    }
+
+    this.get_pdr_entries = function() {
+        return new Promise((resolve, reject) => {    
+            axios.get(this.host + '/pdr-entries', {
+                params: {
+                    authToken: this.authToken,
+                }            })
+            .then(entries => { resolve(entries.data) })
+            .catch(err => { reject(err) });
+        })
+    }
+
     this.update_encryption_info = function(encryptedKey, hashedPassword) {
         return new Promise((resolve, reject) => {
             const xhr = new_HTTP();
@@ -1454,12 +1493,8 @@ exports.init = function(options, debugHost) {
                 }
             }
 
-            let recordInfo = {}
-            try {
-                recordInfo = this.utils.parse_record_ID(recordID) 
-            } catch(err) {
-                reject(err); return;
-            }
+            try { this.utils.parse_record_ID(recordID) } 
+            catch(err) { reject(err); return; }
 
             this.get_data_management_history(recordID, type).then((history) => {
                 this.utils.addresses_to_emails(history).then((history) => {
