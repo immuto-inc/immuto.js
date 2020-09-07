@@ -108,6 +108,11 @@ async function test_pdr() {
     const recordID = record.recordID
     assert_throw(pdrID === recordID, `Expected pdrID ${pdrID} to match recordID ${recordID}`)
 
+    const records    = await im.get_pdr_entries(pdrID)
+    const sameRecord = records[0]
+    const sameRecordID = sameRecord.recordID
+    assert_throw(pdrID === sameRecordID, `Expected pdrID ${pdrID} to match sameRecordID ${sameRecordID}`)
+
     const dataDown = await im.download_file_data(recordID)
     assert_throw(data === dataDown, `Expected data ${data} to match dataDown ${dataDown}`)
 
