@@ -30,7 +30,7 @@
   },
   "homepage": "https://www.immuto.io",
   "dependencies": {
-    "axios": "^0.20.0",
+    "axios": "^0.21.1",
     "blob": "^0.1.0",
     "eth-sig-util": "^2.5.3",
     "node-rsa": "^1.1.1",
